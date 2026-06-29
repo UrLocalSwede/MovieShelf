@@ -1,1 +1,28 @@
-settings.txt
+# ---- Build output ----
+# Keep build/MovieShelf.spec, ignore PyInstaller work dirs and the final exe.
+build/*/
+dist/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+
+# ---- Local / generated state ----
+settings.txt          # legacy local settings (now stored in %APPDATA%\MovieShelf)
+config.json           # may contain API keys — never commit
+*.log
+
+# ---- Editor / tooling ----
+.claude/
+.vscode/
+.idea/
+
+# ---- OS ----
+Thumbs.db
+desktop.ini
+.DS_Store
