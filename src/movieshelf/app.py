@@ -17,19 +17,21 @@ def main():
     log.info('MovieShelf %s starting (logs: %s)', __version__, log_path)
 
     # Diagnostic: confirm the optional native/data-backed libraries loaded (esp. when frozen).
-    from . import fingerprint, parsing
-    log.info('Capabilities: guessit=%s mediainfo=%s', parsing._HAS_GUESSIT, fingerprint._HAS_MEDIAINFO)
+    from . import fingerprint, parsing, player
+    log.info('Capabilities: guessit=%s mediainfo=%s mpv=%s',
+             parsing._HAS_GUESSIT, fingerprint._HAS_MEDIAINFO, player.has_mpv())
 
     api = Api()
-    webview.create_window(
+    window = webview.create_window(
         'MovieShelf',
         url=str(web_dir() / 'index.html'),
         js_api=api,
         width=1280,
         height=820,
         min_size=(1024, 700),
-        background_color='#0d0e12',
+        background_color='#100e11',
     )
+    window.events.closed += player.shutdown  # tear down the mpv core on exit
 
     webview.start()
     log.info('MovieShelf exiting')

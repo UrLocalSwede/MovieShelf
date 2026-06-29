@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "movieshelf"
-version = "2.1.2"
+version = "2.2.0"
 description = "A local movie library browser with TMDb/OMDb matching, VLC playback, and an HTML/CSS frontend."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
-dependencies = ["pywebview>=5.0", "guessit>=3.8", "pymediainfo>=6.1"]
+dependencies = ["pywebview>=5.0", "guessit>=3.8", "pymediainfo>=6.1", "python-mpv>=1.0"]
 
 [project.gui-scripts]
 movieshelf = "movieshelf.app:main"

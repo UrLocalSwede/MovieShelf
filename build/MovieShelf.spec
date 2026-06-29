@@ -14,7 +14,10 @@ datas = [
     (os.path.join(ASSETS, 'movie_icon.png'), 'assets'),
     (WEB, 'web'),
 ]
-binaries = []
+binaries = [
+    # Bundled mpv engine — placed at the bundle root where python-mpv finds it via PATH.
+    (os.path.join(ROOT, 'vendor', 'libmpv', 'libmpv-2.dll'), '.'),
+]
 hiddenimports = []
 for pkg in ('guessit', 'rebulk', 'babelfish', 'pymediainfo'):
     pkg_datas, pkg_binaries, pkg_hidden = collect_all(pkg)

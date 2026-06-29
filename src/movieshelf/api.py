@@ -12,7 +12,7 @@ import webview
 
 from .library import find_movies, find_subtitles
 from .metadata import get_cover, get_metadata
-from .player import play_movie
+from .player import play_movie, stop
 from .settings import load_folder, load_saved_folders, save_folders
 
 log = logging.getLogger('movieshelf.api')
@@ -107,3 +107,8 @@ class Api:
         player = play_movie(trailer_path)
         log.info('Playing trailer %s in %s', trailer_path, player)
         return {'player': player}
+
+    @_bridge
+    def stop_playback(self):
+        stop()
+        return {'stopped': True}

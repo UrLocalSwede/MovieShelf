@@ -306,6 +306,13 @@ async function play() {
   else { status.classList.add('error'); status.textContent = (result && result.error) || 'Unable to open the movie.'; }
 }
 
+async function stopPlayback() {
+  await api().stop_playback();
+  const status = $('play-status');
+  status.classList.remove('error');
+  status.textContent = 'Stopped.';
+}
+
 async function playTrailer() {
   if (!state.meta || !state.meta.trailer) return;
   const status = $('play-status');
@@ -342,6 +349,7 @@ function init() {
   $('refresh').addEventListener('click', refresh);
   $('add-folder').addEventListener('click', addFolder);
   $('play').addEventListener('click', play);
+  $('stop').addEventListener('click', stopPlayback);
   $('trailer').addEventListener('click', playTrailer);
   $('rematch').addEventListener('click', rematch);
   $('detail-close').addEventListener('click', closeDetail);

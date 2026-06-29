@@ -7,14 +7,14 @@
 
 A fast, clean desktop app for browsing a large local/network movie collection. It scans your
 folders, identifies each film online, and shows posters, artwork, ratings, and details in a modern
-dark interface — then plays your file in one click through VLC.
+dark interface — then plays your file in one click with a **built-in mpv player**.
 
 The UI is plain **HTML/CSS/JS** rendered in a native window via
 [pywebview](https://pywebview.flowrl.com/) (over the Windows WebView2 runtime). **Python** does all
 the scanning, matching, and playback. Online identification is **only performed when you select a
 movie**, and everything is cached locally so it's instant afterward — and works offline.
 
-## ✨ Features
+## Features
 
 - **Automatic identification** — parses the filename/folder, fingerprints the file
   (duration/resolution), searches [TMDb](https://www.themoviedb.org/), and picks the best match by
@@ -24,12 +24,13 @@ movie**, and everything is cached locally so it's instant afterward — and work
 - **Cover art in the library grid**, loaded lazily in the background and cached.
 - **Local trailers** — finds a trailer next to the movie (a `*-trailer.*` file or a
   `Trailers`/`Extras` subfolder, ≤ 10 min) and plays it; says so clearly when there isn't one.
-- **One-click playback** through VLC (falls back to your system default player), with subtitle
-  selection.
+- **Built-in player** — a bundled **mpv** engine plays virtually any container/codec (mkv, HEVC/x265,
+  DTS/AC3, PGS/ASS subtitles) natively, with on-screen controls and keyboard shortcuts. No external
+  player needed (falls back to VLC / your default player only if the bundled engine is unavailable).
 - **Offline-friendly local cache** of metadata and artwork.
-- **Single self-contained executable** (~18 MB) — no Python install required to run.
+- **Self-contained executable** — no Python (or VLC) install required to run.
 
-## 🚀 Getting started
+## Getting started
 
 1. Download `MovieShelf.exe` from the [Releases](../../releases) page (or build it — see below).
 2. Make sure the **WebView2 runtime** is installed (it ships with Microsoft Edge and is present on
@@ -37,10 +38,11 @@ movie**, and everything is cached locally so it's instant afterward — and work
 3. (Recommended) [Add a free TMDb API key](#-api-keys) to enable online matching.
 4. Run `MovieShelf.exe`, add your movie folder(s) from the sidebar, and click a title.
 
-> Playback prefers [VLC](https://www.videolan.org/vlc/) if installed; otherwise it uses your default
-> media player.
+> Playback uses the bundled **mpv** player. In the player window, use the on-screen controls or
+> keyboard shortcuts: space (pause), ←/→ (seek), `f` (fullscreen), `j`/`k` (subtitle track),
+> `#` (audio track), `q` (close).
 
-## 🔑 API keys
+## API keys
 
 Online matching needs a **free TMDb API key** (themoviedb.org → *Settings → API*). OMDb (for
 IMDb/RT/Metacritic ratings) is optional and falls back to a public sample key.
@@ -54,7 +56,7 @@ Provide them either way:
   { "tmdb_api_key": "your_tmdb_key", "omdb_api_key": "your_omdb_key" }
   ```
 
-## 📂 Where your data lives
+## Where your data lives
 
 | Data | Location |
 | --- | --- |
@@ -65,7 +67,7 @@ Provide them either way:
 
 Nothing is written into the app folder, so the executable stays portable.
 
-## 🛠️ Development
+## Development
 
 Requires Python 3.11+ on Windows.
 
@@ -78,61 +80,46 @@ $env:PYTHONPATH = "src"
 
 ### Building the executable
 
+First fetch the bundled mpv engine (one-time; downloads `libmpv-2.dll` into `vendor/`):
+
+```powershell
+.venv\Scripts\python.exe tools\fetch_libmpv.py
+```
+
+Then build:
+
 ```powershell
 .venv\Scripts\python.exe -m PyInstaller --noconfirm build\MovieShelf.spec
 ```
 
-This produces a single `dist\MovieShelf.exe`. To regenerate the app icon (requires `pillow`):
+This produces a single `dist\MovieShelf.exe` (larger than a typical app — it embeds the mpv/ffmpeg
+engine). To regenerate the app icon (requires `pillow`):
 
 ```powershell
 .venv\Scripts\python.exe tools\generate_icon.py
 ```
 
-## 🗂️ Project structure
+## Tech stack
 
-```
-MovieShelf/
-├─ src/movieshelf/
-│  ├─ app.py            # entry point — launches the pywebview window
-│  ├─ api.py            # JS <-> Python bridge (js_api)
-│  ├─ metadata.py       # match pipeline orchestrator + grid covers
-│  ├─ parsing.py        # filename/folder parsing (guessit)
-│  ├─ fingerprint.py    # media probe (pymediainfo)
-│  ├─ matching.py       # candidate scoring
-│  ├─ trailers.py       # local trailer detection
-│  ├─ cache.py          # metadata / artwork / title cache
-│  ├─ providers/        # tmdb.py, omdb.py
-│  ├─ library.py        # filesystem scan + subtitles
-│  ├─ player.py         # VLC / default-player launch
-│  ├─ settings.py       # saved folders
-│  ├─ config.py         # paths, API keys, constants
-│  ├─ logsetup.py       # logging + crash capture
-│  └─ web/              # index.html, styles.css, app.js (frontend)
-├─ assets/              # app icon (.png / .ico)
-├─ tools/generate_icon.py
-├─ build/MovieShelf.spec
-├─ requirements.txt · pyproject.toml · config.example.json
-└─ README.md · CHANGELOG.md · LICENSE
-```
-
-## 🧰 Tech stack
-
-Python · [pywebview](https://pywebview.flowrl.com/) · [guessit](https://guessit.io/) ·
+Python · [pywebview](https://pywebview.flowrl.com/) · [mpv](https://mpv.io/) /
+[python-mpv](https://github.com/jaseg/python-mpv) · [guessit](https://guessit.io/) ·
 [pymediainfo](https://pymediainfo.readthedocs.io/) · [PyInstaller](https://pyinstaller.org/) ·
 HTML/CSS/JS.
 
-## 🤝 Contributing
+## Contributing
 
 Issues and pull requests are welcome. Keep changes focused, match the existing style, and update
 `CHANGELOG.md`. The backend modules are small and single-purpose, so most features touch only one or
 two files.
 
-## 📄 License
+## License
 
 Licensed under [Creative Commons Attribution-NonCommercial 4.0 International](LICENSE) (CC BY-NC 4.0):
 free to share and adapt with attribution, **not for commercial use**.
 
-## 🙏 Acknowledgements
+## Acknowledgements
 
 This product uses the **TMDb API** but is not endorsed or certified by
 [TMDb](https://www.themoviedb.org/). Ratings data is provided by [OMDb](https://www.omdbapi.com/).
+Playback is powered by [**mpv**](https://mpv.io/), bundled as a separate `libmpv-2.dll`
+(GPLv2+/LGPLv2.1+; source available at mpv.io).

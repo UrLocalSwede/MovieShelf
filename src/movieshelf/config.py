@@ -73,6 +73,13 @@ def web_dir() -> Path:
     return Path(__file__).resolve().parent / 'web'
 
 
+def libmpv_dir() -> Path:
+    """Directory containing libmpv-2.dll. Frozen: the bundle root; source: vendor/libmpv."""
+    if getattr(sys, 'frozen', False):
+        return Path(getattr(sys, '_MEIPASS', Path(sys.executable).parent))
+    return Path(__file__).resolve().parents[2] / 'vendor' / 'libmpv'
+
+
 def user_config_dir() -> Path:
     """User-writable config directory (persists across exe restarts), created on demand."""
     base = os.environ.get('APPDATA') or os.path.join(os.path.expanduser('~'), '.config')

@@ -3,6 +3,21 @@
 All notable changes to MovieShelf are documented here. This project adheres to
 [Keep a Changelog](https://keepachangelog.com/) conventions.
 
+## [2.2.0] - 2026-06-29
+
+### Added
+- **Integrated, bundled media player (mpv).** Playback now uses an embedded **mpv** engine
+  (`libmpv`, via [python-mpv](https://github.com/jaseg/python-mpv)) instead of requiring an external
+  VLC install. mpv plays virtually any container/codec natively (mkv, HEVC/x265, DTS/AC3, PGS/ASS
+  subtitles) with no transcoding, and provides its own on-screen controls + keyboard shortcuts.
+  Selected subtitles are passed through. A **Stop** button was added to the detail view.
+- `tools/fetch_libmpv.py` downloads `libmpv-2.dll` into `vendor/` for bundling; the PyInstaller spec
+  embeds it. New `config.libmpv_dir()` + a `mpv=` capability log line.
+
+### Changed
+- External VLC / system default player is now only a **fallback** when the bundled engine can't load.
+- The executable is larger now (it embeds the mpv/ffmpeg engine, ~110 MB DLL).
+
 ## [2.1.2] - 2026-06-29
 
 ### Changed

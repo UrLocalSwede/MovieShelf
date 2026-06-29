@@ -3,6 +3,9 @@
 build/*/
 dist/
 
+# Vendored native libs (fetched via tools/fetch_libmpv.py, not committed)
+vendor/
+
 # ---- Python ----
 __pycache__/
 *.py[cod]
@@ -16,6 +19,7 @@ env/
 settings.txt          # legacy local settings (now stored in %APPDATA%\MovieShelf)
 config.json           # may contain API keys — never commit
 *.log
+tools/
 
 # ---- Editor / tooling ----
 .claude/
