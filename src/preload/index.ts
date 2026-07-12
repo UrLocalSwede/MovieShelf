@@ -19,6 +19,11 @@ const api: MovieShelfApi = {
   getMetadata: (path) => ipcRenderer.invoke(IPC.getMetadata, path),
   refreshMetadata: (path) => ipcRenderer.invoke(IPC.refreshMetadata, path),
   getSubtitles: (path) => ipcRenderer.invoke(IPC.getSubtitles, path),
+  getApiKeys: () => ipcRenderer.invoke(IPC.getApiKeys),
+  saveApiKeys: (keys) => ipcRenderer.invoke(IPC.saveApiKeys, keys),
+  getSettings: () => ipcRenderer.invoke(IPC.getSettings),
+  saveSettings: (settings) => ipcRenderer.invoke(IPC.saveSettings, settings),
+  clearCache: () => ipcRenderer.invoke(IPC.clearCache),
   play: (path, subtitlePath = '') => ipcRenderer.invoke(IPC.play, path, subtitlePath),
   playTrailer: (trailerPath) => ipcRenderer.invoke(IPC.playTrailer, trailerPath),
   stopPlayback: () => ipcRenderer.invoke(IPC.stopPlayback),
@@ -55,6 +60,9 @@ const events = {
   },
   onControlsActive(cb: (active: boolean) => void): () => void {
     return on(EVT.controlsActive, cb)
+  },
+  onSettingsChanged(cb: () => void): () => void {
+    return on(EVT.settingsChanged, cb)
   },
   onRequestFullscreenToggle(cb: () => void): () => void {
     return on(EVT.requestFullscreenToggle, cb)

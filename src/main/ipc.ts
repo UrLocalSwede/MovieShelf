@@ -4,13 +4,16 @@
 
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { IPC, EVT } from '../../shared/types'
-import type { MoviesPayload } from '../../shared/types'
+import type { ApiKeysPayload, AppSettings, MoviesPayload } from '../../shared/types'
 import { log } from './logging'
 import { findMovies, findSubtitles } from './library'
 import { loadFolder, loadSavedFolders, saveFolders } from './settings'
+import { readStoredKeys, saveKeys } from './config'
+import { loadSettings, saveSettings } from './appSettings'
+import { clearCache } from './cache'
 import { getCover, getMetadata } from './metadata'
 import * as player from './player'
-import { checkForUpdates, quitAndInstall } from './updater'
+import { checkForUpdates, quitAndInstall, setAutoDownload } from './updater'
 
 function handle(channel: string, fn: (...args: any[]) => unknown): void {
   ipcMain.handle(channel, async (_event, ...args: unknown[]) => {
@@ -71,6 +74,27 @@ export function registerIpc(): void {
   )
   handle(IPC.getSubtitles, (path: string) => findSubtitles(path))
 
+  // -- settings --------------------------------------------------------------
+  handle(IPC.getApiKeys, () => readStoredKeys())
+  handle(IPC.saveApiKeys, (keys: ApiKeysPayload) => {
+    saveKeys({ tmdb: keys?.tmdb || '', omdb: keys?.omdb || '' })
+    return { ok: true }
+  })
+  handle(IPC.getSettings, () => loadSettings())
+  handle(IPC.saveSettings, (settings: AppSettings) => {
+    const saved = saveSettings(settings || {})
+    setAutoDownload(saved.autoDownloadUpdates) // apply the toggle live
+    // Notify every window (e.g. the controls overlay re-reads skipSeconds for its label).
+    for (const w of BrowserWindow.getAllWindows()) {
+      if (!w.isDestroyed()) w.webContents.send(EVT.settingsChanged)
+    }
+    return saved
+  })
+  handle(IPC.clearCache, () => {
+    clearCache()
+    return { ok: true }
+  })
+
   handle(IPC.play, async (path: string, subtitlePath = '') => {
     if (!path) return { error: 'No movie selected.' }
     const backend = await player.playMovie(path, subtitlePath || '')
@@ -100,8 +124,10 @@ export function registerIpc(): void {
     player.seek(Number(seconds))
     return { ok: true }
   })
-  handle(IPC.playerSkip, (delta: number) => {
-    player.skip(Number(delta))
+  // The overlay sends a direction (-1/+1); the jump amount comes from settings so it stays live.
+  handle(IPC.playerSkip, (dir: number) => {
+    const step = loadSettings().skipSeconds
+    player.skip(Math.sign(Number(dir) || 0) * step)
     return { ok: true }
   })
   handle(IPC.playerSetPause, (paused: boolean) => {

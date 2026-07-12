@@ -9,7 +9,7 @@
 // so an existing %APPDATA%\MovieShelf\cache carries over.
 
 import { createHash } from 'crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, rmSync } from 'fs'
 import { join } from 'path'
 import { cacheDir } from './config'
 import { normcase, normcaseNormpath } from './paths'
@@ -109,4 +109,14 @@ export function setTitle(path: string, title: string): void {
   } catch (exc) {
     log.debug('Could not write titles cache:', String(exc))
   }
+}
+
+// -- clear --------------------------------------------------------------------
+/** Wipe all cached metadata, artwork, and grid titles; the next lookups re-fetch. */
+export function clearCache(): void {
+  const dir = cacheDir()
+  rmSync(dir, { recursive: true, force: true })
+  mkdirSync(dir, { recursive: true })
+  titles = null // drop the in-memory titles cache so it reloads empty
+  log.info('Cache cleared')
 }

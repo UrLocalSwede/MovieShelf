@@ -45,25 +45,25 @@ export function PauseIcon(): React.JSX.Element {
   )
 }
 
-export function Skip10Back(): React.JSX.Element {
+export function Skip10Back({ seconds = 10 }: { seconds?: number }): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M11 6 A6 6 0 1 1 5.5 9.5" strokeLinecap="round" />
       <path d="M8 4 L5 6.5 L8 9" strokeLinecap="round" strokeLinejoin="round" />
       <text x="12" y="16" fontSize="7" fontWeight="700" fill="currentColor" stroke="none" textAnchor="middle">
-        10
+        {seconds}
       </text>
     </svg>
   )
 }
 
-export function Skip10Fwd(): React.JSX.Element {
+export function Skip10Fwd({ seconds = 10 }: { seconds?: number }): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M13 6 A6 6 0 1 0 18.5 9.5" strokeLinecap="round" />
       <path d="M16 4 L19 6.5 L16 9" strokeLinecap="round" strokeLinejoin="round" />
       <text x="12" y="16" fontSize="7" fontWeight="700" fill="currentColor" stroke="none" textAnchor="middle">
-        10
+        {seconds}
       </text>
     </svg>
   )
@@ -117,6 +117,42 @@ export function CloseIcon(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M6 6 L18 18 M18 6 L6 18" />
+    </svg>
+  )
+}
+
+// ---- Sidebar toolbar / settings icons ----
+
+export function RefreshIcon(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 11 A8 8 0 1 0 18 16" />
+      <path d="M20 5 V11 H14" />
+    </svg>
+  )
+}
+
+export function AddFolderIcon(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 7 A2 2 0 0 1 5 5 H9 L11 7 H19 A2 2 0 0 1 21 9 V17 A2 2 0 0 1 19 19 H5 A2 2 0 0 1 3 17 Z" />
+      <path d="M12 11 V16 M9.5 13.5 H14.5" />
+    </svg>
+  )
+}
+
+export function SettingsIcon(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor" stroke="none">
+      <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.485.485 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.487.487 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.485.485 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+    </svg>
+  )
+}
+
+export function BackIcon(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 5 L8 12 L15 19" />
     </svg>
   )
 }

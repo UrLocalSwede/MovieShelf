@@ -5,6 +5,7 @@
 import { app, type BrowserWindow } from 'electron'
 import electronUpdater from 'electron-updater'
 import { log } from './logging'
+import { loadSettings } from './appSettings'
 import { EVT } from '../../shared/types'
 
 // electron-updater is CommonJS; destructure to avoid ESM named-import interop issues.
@@ -24,7 +25,7 @@ export function initUpdater(mainWindow: BrowserWindow): void {
     return
   }
   win = mainWindow
-  autoUpdater.autoDownload = true
+  autoUpdater.autoDownload = loadSettings().autoDownloadUpdates
   autoUpdater.autoInstallOnAppQuit = true
   autoUpdater.logger = log as unknown as typeof autoUpdater.logger
 
@@ -54,6 +55,11 @@ export function initUpdater(mainWindow: BrowserWindow): void {
 export function stopUpdater(): void {
   if (timer) clearInterval(timer)
   timer = null
+}
+
+/** Apply the auto-download preference live (called when settings are saved). */
+export function setAutoDownload(on: boolean): void {
+  if (app.isPackaged) autoUpdater.autoDownload = on
 }
 
 export function checkForUpdates(): { checking: boolean } | { error: string } {

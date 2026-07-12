@@ -106,6 +106,19 @@ export interface CoverResult {
   poster?: string
 }
 
+// Editable API keys (as stored, no env/sample-key fallbacks) surfaced in the settings page.
+export interface ApiKeysPayload {
+  tmdb: string
+  omdb: string
+}
+
+// General app settings persisted to settings.json.
+export interface AppSettings {
+  autoDownloadUpdates: boolean
+  defaultVolume: number // 0–100, applied when playback starts
+  skipSeconds: number // amount the ±skip buttons jump
+}
+
 export interface SubtitleEntry {
   name: string
   path: string
@@ -145,6 +158,11 @@ export interface MovieShelfApi {
   getMetadata(path: string): Promise<Result<Metadata>>
   refreshMetadata(path: string): Promise<Result<Metadata>>
   getSubtitles(path: string): Promise<Result<SubtitleEntry[]>>
+  getApiKeys(): Promise<Result<ApiKeysPayload>>
+  saveApiKeys(keys: ApiKeysPayload): Promise<Result<{ ok: true }>>
+  getSettings(): Promise<Result<AppSettings>>
+  saveSettings(settings: AppSettings): Promise<Result<AppSettings>>
+  clearCache(): Promise<Result<{ ok: true }>>
   play(path: string, subtitlePath?: string): Promise<Result<PlayResult>>
   playTrailer(trailerPath: string): Promise<Result<PlayResult>>
   stopPlayback(): Promise<Result<{ stopped: true }>>
@@ -190,6 +208,11 @@ export const IPC = {
   getMetadata: 'get-metadata',
   refreshMetadata: 'refresh-metadata',
   getSubtitles: 'get-subtitles',
+  getApiKeys: 'get-api-keys',
+  saveApiKeys: 'save-api-keys',
+  getSettings: 'get-settings',
+  saveSettings: 'save-settings',
+  clearCache: 'clear-cache',
   play: 'play',
   playTrailer: 'play-trailer',
   stopPlayback: 'stop-playback',
@@ -215,6 +238,7 @@ export const EVT = {
   playbackEnded: 'playback-ended',
   playbackStatus: 'playback-status', // main → controls overlay (PlaybackStatus patch)
   controlsActive: 'controls-active', // main → controls overlay (boolean: reveal/hide)
+  settingsChanged: 'settings-changed', // main → all windows (settings saved; re-read as needed)
   requestFullscreenToggle: 'request-fullscreen-toggle', // main → main renderer (App)
   requestExit: 'request-exit', // main → main renderer (App)
   updateAvailable: 'update-available',

@@ -11,6 +11,7 @@ export interface MovieShelfEvents {
   onPlaybackEnded(cb: () => void): () => void
   onPlaybackStatus(cb: (p: Partial<PlaybackStatus>) => void): () => void
   onControlsActive(cb: (active: boolean) => void): () => void
+  onSettingsChanged(cb: () => void): () => void
   onRequestFullscreenToggle(cb: () => void): () => void
   onRequestExit(cb: () => void): () => void
   onUpdateAvailable(cb: (p: UpdateAvailablePayload) => void): () => void

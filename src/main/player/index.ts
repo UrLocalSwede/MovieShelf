@@ -18,6 +18,7 @@ import {
 import { Mpv } from './mpv'
 import { playExternal } from './fallback'
 import { normalizePath } from '../paths'
+import { loadSettings } from '../appSettings'
 import { EVT, type PlayerBackend } from '../../../shared/types'
 
 let ownerWindow: BrowserWindow | null = null
@@ -238,6 +239,7 @@ export async function playMovie(filePath: string, subtitlePath = ''): Promise<Pl
     try {
       show()
       mpv!.load(fixed, subtitlePath ? normalizePath(subtitlePath) : '')
+      mpv!.setVolume(loadSettings().defaultVolume) // apply the configured start volume
       return 'mpv'
     } catch (exc) {
       log.error('mpv playback failed, falling back', exc)

@@ -5,6 +5,7 @@ import { Sidebar } from './components/Sidebar'
 import { Grid } from './components/Grid'
 import { DetailModal } from './components/DetailModal'
 import { PlayerPane } from './components/PlayerPane'
+import { SettingsPage } from './components/SettingsPage'
 import { UpdateBanner } from './components/UpdateBanner'
 import { useCovers } from './hooks/useCovers'
 import type { ChooseFolderCancelled, Metadata, Movie, MoviesPayload, SubtitleEntry } from '@shared/types'
@@ -29,6 +30,7 @@ export default function App(): React.JSX.Element {
   const [meta, setMeta] = useState<Metadata | null>(null)
   const [subtitles, setSubtitles] = useState<SubtitleEntry[]>([])
   const [detailOpen, setDetailOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadingText, setLoadingText] = useState('')
 
@@ -46,9 +48,11 @@ export default function App(): React.JSX.Element {
   const playingRef = useRef(playing)
   const fullscreenRef = useRef(fullscreen)
   const detailOpenRef = useRef(detailOpen)
+  const settingsOpenRef = useRef(settingsOpen)
   playingRef.current = playing
   fullscreenRef.current = fullscreen
   detailOpenRef.current = detailOpen
+  settingsOpenRef.current = settingsOpen
 
   const filtered = movies.filter((m) => m.title.toLowerCase().includes(query.trim().toLowerCase()))
 
@@ -186,13 +190,15 @@ export default function App(): React.JSX.Element {
   }, [toggleFullscreen])
 
   // ---- listeners (mount-only; call through refs) ---------------------------
-  const actions = useRef({ closeDetail, toggleFullscreen, exitPlayer, syncRegion })
-  actions.current = { closeDetail, toggleFullscreen, exitPlayer, syncRegion }
+  const closeSettings = useCallback(() => setSettingsOpen(false), [])
+  const actions = useRef({ closeDetail, toggleFullscreen, exitPlayer, syncRegion, closeSettings })
+  actions.current = { closeDetail, toggleFullscreen, exitPlayer, syncRegion, closeSettings }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
         if (detailOpenRef.current) actions.current.closeDetail()
+        else if (settingsOpenRef.current) actions.current.closeSettings()
         else if (fullscreenRef.current) void actions.current.toggleFullscreen()
         else if (playingRef.current) void actions.current.exitPlayer()
         return
@@ -296,14 +302,6 @@ export default function App(): React.JSX.Element {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <div className="actions">
-          <button className="btn" onClick={() => void loadMovies()}>
-            Refresh
-          </button>
-          <button className="btn" onClick={() => void addFolder()}>
-            Add folder
-          </button>
-        </div>
       </header>
 
       <div className="layout">
@@ -313,6 +311,9 @@ export default function App(): React.JSX.Element {
           count={movies.length}
           onSwitch={(f) => void switchFolder(f)}
           onRemove={(f) => void removeFolder(f)}
+          onRefresh={() => void loadMovies()}
+          onAddFolder={() => void addFolder()}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
         <main className={'content' + (fullscreen ? ' fullscreen' : '')}>
           <PlayerPane
@@ -323,15 +324,19 @@ export default function App(): React.JSX.Element {
             onFullscreenToggle={() => void toggleFullscreen()}
             onClose={() => void exitPlayer()}
           />
-          <Grid
-            movies={movies}
-            filtered={filtered}
-            query={query.trim()}
-            covers={covers}
-            selectedPath={selected?.path ?? null}
-            scanning={scanning}
-            onSelect={(m) => void selectMovie(m)}
-          />
+          {settingsOpen ? (
+            <SettingsPage onClose={closeSettings} onCacheCleared={() => void loadMovies()} />
+          ) : (
+            <Grid
+              movies={movies}
+              filtered={filtered}
+              query={query.trim()}
+              covers={covers}
+              selectedPath={selected?.path ?? null}
+              scanning={scanning}
+              onSelect={(m) => void selectMovie(m)}
+            />
+          )}
         </main>
       </div>
 

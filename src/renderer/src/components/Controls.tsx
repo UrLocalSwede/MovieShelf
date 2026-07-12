@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api } from '../api'
+import { api, isError } from '../api'
 import type { PlaybackStatus } from '@shared/types'
 import {
   PlayIcon,
@@ -36,6 +36,7 @@ export function Controls(): React.JSX.Element {
   const [status, setStatus] = useState<PlaybackStatus>(DEFAULT_STATUS)
   const [active, setActive] = useState(true)
   const [hovering, setHovering] = useState(false)
+  const [skipSeconds, setSkipSeconds] = useState(10)
 
   // Seek-bar drag state. While dragging, the fill follows `dragValue` (0..1) so incoming
   // time-pos telemetry doesn't fight the user's pointer; the seek is committed on release.
@@ -49,9 +50,17 @@ export function Controls(): React.JSX.Element {
       setStatus((prev) => ({ ...prev, ...patch }))
     )
     const offActive = window.events.onControlsActive((a) => setActive(a))
+    // Skip amount lives in settings; fetch it for the button labels and refresh when it changes.
+    const loadSkip = async (): Promise<void> => {
+      const s = await api.getSettings()
+      if (!isError(s)) setSkipSeconds(s.skipSeconds)
+    }
+    void loadSkip()
+    const offSettings = window.events.onSettingsChanged(() => void loadSkip())
     return () => {
       offStatus()
       offActive()
+      offSettings()
     }
   }, [])
 
@@ -143,11 +152,11 @@ export function Controls(): React.JSX.Element {
             >
               {pause ? <PlayIcon /> : <PauseIcon />}
             </button>
-            <button className="ctl-btn" title="Back 10s (←)" onClick={() => void api.playerSkip(-10)}>
-              <Skip10Back />
+            <button className="ctl-btn" title={`Back ${skipSeconds}s (←)`} onClick={() => void api.playerSkip(-1)}>
+              <Skip10Back seconds={skipSeconds} />
             </button>
-            <button className="ctl-btn" title="Forward 10s (→)" onClick={() => void api.playerSkip(10)}>
-              <Skip10Fwd />
+            <button className="ctl-btn" title={`Forward ${skipSeconds}s (→)`} onClick={() => void api.playerSkip(1)}>
+              <Skip10Fwd seconds={skipSeconds} />
             </button>
             <div className="ctl-volume">
               <button

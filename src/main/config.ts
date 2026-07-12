@@ -3,7 +3,7 @@
 // and cache carry over unchanged.
 
 import { app } from 'electron'
-import { existsSync, readFileSync, mkdirSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
 
@@ -101,4 +101,41 @@ export function loadKeys(): ApiKeys {
   // OMDb falls back to a public sample key so ratings degrade gracefully without setup.
   keys.omdb = (process.env['OMDB_API_KEY'] || keys.omdb).trim() || 'trilogy'
   return keys
+}
+
+function configFilePath(): string {
+  return join(userConfigDir(), 'config.json')
+}
+
+function readConfigJson(): Record<string, unknown> {
+  const configFile = configFilePath()
+  if (!existsSync(configFile)) return {}
+  try {
+    let text = readFileSync(configFile, 'utf-8')
+    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1) // tolerate a BOM
+    const data = JSON.parse(text)
+    return data && typeof data === 'object' ? (data as Record<string, unknown>) : {}
+  } catch {
+    return {} // malformed config.json — treat as empty rather than crash
+  }
+}
+
+/**
+ * The API keys exactly as stored in config.json (no env-var override, no OMDb sample-key
+ * fallback), so the settings UI shows what the user actually saved (empty when unset).
+ */
+export function readStoredKeys(): ApiKeys {
+  const data = readConfigJson()
+  return {
+    tmdb: String(data.tmdb_api_key || '').trim(),
+    omdb: String(data.omdb_api_key || '').trim()
+  }
+}
+
+/** Persist API keys to config.json, preserving any other fields a future config may hold. */
+export function saveKeys(keys: ApiKeys): void {
+  const data = readConfigJson()
+  data.tmdb_api_key = (keys.tmdb || '').trim()
+  data.omdb_api_key = (keys.omdb || '').trim()
+  writeFileSync(configFilePath(), JSON.stringify(data, null, 2), 'utf-8')
 }
