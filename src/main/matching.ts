@@ -82,16 +82,46 @@ function norm(text: unknown): string {
   return String(text ?? '').trim().toLowerCase()
 }
 
-function ratio(a: string, b: string): number {
-  if (!a || !b) return 0.0
-  return seqRatio(norm(a), norm(b))
+const TRAILING_ARTICLE = /^(.*?),\s*(the|a|an)$/
+const DIACRITICS = new RegExp('[\\u0300-\\u036f]', 'g')
+
+/**
+ * Canonical title for comparison: lowercased, diacritics stripped, `&`→`and`, punctuation
+ * collapsed to spaces, and a trailing article moved to the front ("Movie, The" → "the movie").
+ * Normalizing the *inputs* (not the difflib algorithm) so cosmetic differences stop depressing
+ * otherwise-strong matches. Reused to build search-query variants.
+ */
+export function canonicalTitle(text: unknown): string {
+  let s = String(text ?? '')
+    .normalize('NFD')
+    .replace(DIACRITICS, '') // drop combining diacritics (U+0300–U+036F)
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .trim()
+  const swap = s.match(TRAILING_ARTICLE)
+  if (swap) s = `${swap[2]} ${swap[1]}`
+  return s
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ')
 }
 
-export function titleRatio(parsedTitle: string, candidate: Candidate): number {
+function ratio(a: string, b: string): number {
+  if (!a || !b) return 0.0
+  return seqRatio(canonicalTitle(a), canonicalTitle(b))
+}
+
+/**
+ * Best similarity of the candidate's names against the parsed title AND (when available) the
+ * file's embedded container title — a clean secondary signal for badly-named files.
+ */
+export function titleRatio(parsedTitle: string, candidate: Candidate, embeddedTitle?: string): number {
   const names = [candidate.title, candidate.original_title, candidate.name]
+  const queries = [parsedTitle, embeddedTitle].filter((q): q is string => Boolean(q && q.trim()))
   let best = 0.0
   for (const n of names) {
-    if (n) best = Math.max(best, ratio(parsedTitle, n))
+    if (!n) continue
+    for (const q of queries) best = Math.max(best, ratio(q, n))
   }
   return best
 }
@@ -120,8 +150,8 @@ function runtimeScore(fpMinutes: number | null | undefined, candRuntime: number 
 }
 
 /** Cheap ranking of search hits using only title + year (no extra API calls). */
-export function prescore(candidate: Candidate, parsed: Parsed): number {
-  const t = titleRatio(parsed.title || '', candidate)
+export function prescore(candidate: Candidate, parsed: Parsed, embeddedTitle?: string): number {
+  const t = titleRatio(parsed.title || '', candidate, embeddedTitle)
   const y = yearScore(parsed.year, candidateYear(candidate))
   const pop = Math.min((candidate.popularity || 0) / 100.0, 1.0)
   return 0.78 * t + 0.2 * y + 0.02 * pop
@@ -129,7 +159,7 @@ export function prescore(candidate: Candidate, parsed: Parsed): number {
 
 /** Full score for a fetched detail record, including runtime + language signals. */
 export function finalScore(details: Candidate, parsed: Parsed, fp: Fingerprint): number {
-  const t = titleRatio(parsed.title || '', details)
+  const t = titleRatio(parsed.title || '', details, fp.embedded_title)
   const y = yearScore(parsed.year, candidateYear(details))
   const r = runtimeScore(fp.duration_min, details.runtime)
 
@@ -139,7 +169,10 @@ export function finalScore(details: Candidate, parsed: Parsed, fp: Fingerprint):
     lang = parsedLang.startsWith(norm(details.original_language)) ? 1.0 : 0.3
   }
 
-  return round(0.6 * t + 0.18 * y + 0.17 * r + 0.05 * lang, 4)
+  // Small popularity term: only meaningful as a tiebreak between otherwise near-equal candidates.
+  const pop = Math.min((details.popularity || 0) / 100.0, 1.0)
+
+  return round(0.58 * t + 0.18 * y + 0.16 * r + 0.05 * lang + 0.03 * pop, 4)
 }
 
 function round(n: number, digits: number): number {

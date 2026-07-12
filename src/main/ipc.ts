@@ -2,7 +2,6 @@
 // Every handler is wrapped so exceptions are logged and returned as { error }, never thrown
 // across the boundary — matching api.py's _bridge decorator.
 
-import { basename } from 'path'
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { IPC } from '../../shared/types'
 import type { MoviesPayload } from '../../shared/types'
@@ -70,9 +69,7 @@ export function registerIpc(): void {
   handle(IPC.refreshMetadata, (path: string) =>
     path ? getMetadata(path, true) : { error: 'No movie selected.' }
   )
-  handle(IPC.getSubtitles, (path: string) =>
-    findSubtitles(path).map((p) => ({ name: basename(p), path: p }))
-  )
+  handle(IPC.getSubtitles, (path: string) => findSubtitles(path))
 
   handle(IPC.play, async (path: string, subtitlePath = '') => {
     if (!path) return { error: 'No movie selected.' }

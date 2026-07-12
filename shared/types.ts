@@ -109,6 +109,10 @@ export interface CoverResult {
 export interface SubtitleEntry {
   name: string
   path: string
+  // Present when detected from the filename (additive; older callers ignore these):
+  language?: string // display name, e.g. "English", "Swedish", or "Unknown"
+  label?: string // UI label, e.g. "English (forced)" — falls back to name when absent
+  forced?: boolean
 }
 
 export type PlayerBackend = 'mpv' | 'VLC' | 'default player'

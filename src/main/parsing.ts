@@ -5,6 +5,7 @@
 import { basename, dirname, extname } from 'path'
 import { filenameParse, type ParsedMovie } from '@ctrl/video-filename-parser'
 import * as cache from './cache'
+import { canonicalTitle } from './matching'
 import type { Parsed } from '../../shared/types'
 
 // Generic container folders that carry no title information.
@@ -90,6 +91,38 @@ export function parse(path: string): Parsed {
     country: '',
     language
   }
+}
+
+const READABLE_TRAILING_ARTICLE = /^(.*?),\s*(the|a|an)$/i
+const READABLE_LEADING_ARTICLE = /^(the|a|an)\s+/i
+
+/**
+ * Alternate TMDb search strings for a parsed title, so a badly-named file still surfaces the
+ * right hit. Includes the raw title, an article-normalized form ("Movie, The" → "The Movie"),
+ * an article-stripped form, and the main title before a colon. Deduped by canonical form, and
+ * the raw title always stays first (capped at 4 queries).
+ */
+export function titleVariants(title: string): string[] {
+  const raw = (title || '').trim()
+  if (!raw) return []
+
+  const variants = [raw]
+  const swap = raw.match(READABLE_TRAILING_ARTICLE)
+  if (swap) variants.push(`${swap[2]} ${swap[1]}`.trim())
+  if (READABLE_LEADING_ARTICLE.test(raw)) variants.push(raw.replace(READABLE_LEADING_ARTICLE, '').trim())
+  const colon = raw.indexOf(':')
+  if (colon > 0) variants.push(raw.slice(0, colon).trim())
+
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const v of variants) {
+    const key = canonicalTitle(v)
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    out.push(v)
+    if (out.length >= 4) break
+  }
+  return out
 }
 
 /** Clean title for the library grid (cached by path+mtime). Includes the year when known. */

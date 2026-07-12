@@ -134,7 +134,7 @@ export function DetailModal(props: Props): React.JSX.Element {
                     <option value="">Auto</option>
                     {subtitles.map((s) => (
                       <option value={s.path} key={s.path}>
-                        {s.name}
+                        {s.label && s.label !== 'Unknown' ? `${s.label} — ${s.name}` : s.name}
                       </option>
                     ))}
                   </select>

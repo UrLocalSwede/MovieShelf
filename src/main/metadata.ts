@@ -17,8 +17,30 @@ import { tmdb, omdb } from './providers'
 import { log } from './logging'
 import type { Collection, CoverResult, Fingerprint, Metadata, Parsed } from '../../shared/types'
 
-const TOP_N = 3
+const TOP_N = 6
 const MAX_COLLECTION = 24
+
+/** Run each query variant against TMDb and merge the hits, deduped by movie id (order-stable). */
+async function searchVariants(variants: string[], tmdbKey: string, year?: number | null): Promise<any[]> {
+  const merged: any[] = []
+  const seen = new Set<number>()
+  for (const query of variants) {
+    let hits: any[]
+    try {
+      hits = await tmdb.search(query, tmdbKey, year ?? undefined)
+    } catch (exc) {
+      log.debug(`TMDb search failed for "${query}":`, String(exc))
+      continue
+    }
+    for (const hit of hits) {
+      if (hit && typeof hit.id === 'number' && !seen.has(hit.id)) {
+        seen.add(hit.id)
+        merged.push(hit)
+      }
+    }
+  }
+  return merged
+}
 
 export async function getMetadata(path: string, refresh = false): Promise<Metadata> {
   if (!refresh) {
@@ -92,18 +114,15 @@ async function matchAndBuild(path: string, parsed: Parsed, fp: Fingerprint, tmdb
     trailer: trailers.findTrailer(path)
   }
 
-  let results: any[]
-  try {
-    results = await tmdb.search(parsed.title, tmdbKey, parsed.year)
-    if (!results.length && parsed.year) results = await tmdb.search(parsed.title, tmdbKey)
-  } catch (exc) {
-    log.warn(`TMDb search failed for ${parsed.title}:`, String(exc))
-    return base
-  }
+  const variants = parsing.titleVariants(parsed.title)
+  let results = await searchVariants(variants, tmdbKey, parsed.year)
+  // Fall back to a year-less search when a year-constrained query finds nothing.
+  if (!results.length && parsed.year) results = await searchVariants(variants, tmdbKey)
   if (!results.length) return base
 
+  const embedded = fp.embedded_title
   const ranked = [...results]
-    .sort((a, b) => matching.prescore(b, parsed) - matching.prescore(a, parsed))
+    .sort((a, b) => matching.prescore(b, parsed, embedded) - matching.prescore(a, parsed, embedded))
     .slice(0, TOP_N)
 
   let best: any = null
