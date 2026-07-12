@@ -1,6 +1,8 @@
 import type {
   MovieShelfApi,
   PlaybackStatus,
+  RatingResolved,
+  RatingsProgress,
   UpdateAvailablePayload,
   UpdateProgressPayload,
   UpdateDownloadedPayload,
@@ -12,6 +14,8 @@ export interface MovieShelfEvents {
   onPlaybackStatus(cb: (p: Partial<PlaybackStatus>) => void): () => void
   onControlsActive(cb: (active: boolean) => void): () => void
   onSettingsChanged(cb: () => void): () => void
+  onRatingResolved(cb: (p: RatingResolved) => void): () => void
+  onRatingsProgress(cb: (p: RatingsProgress) => void): () => void
   onRequestFullscreenToggle(cb: () => void): () => void
   onRequestExit(cb: () => void): () => void
   onUpdateAvailable(cb: (p: UpdateAvailablePayload) => void): () => void

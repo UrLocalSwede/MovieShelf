@@ -8,6 +8,7 @@ import { PlayerPane } from './components/PlayerPane'
 import { SettingsPage } from './components/SettingsPage'
 import { UpdateBanner } from './components/UpdateBanner'
 import { useCovers } from './hooks/useCovers'
+import { useRatings } from './hooks/useRatings'
 import type { ChooseFolderCancelled, Metadata, Movie, MoviesPayload, SubtitleEntry } from '@shared/types'
 
 const KEY_MAP: Record<string, string> = {
@@ -41,6 +42,7 @@ export default function App(): React.JSX.Element {
   const [playStatusError, setPlayStatusError] = useState(false)
 
   const { covers, ensure, bumpGeneration } = useCovers()
+  const { ratings, progress, hydrate, reset: resetRatings } = useRatings()
   const videoRegionRef = useRef<HTMLDivElement>(null)
   const detailToken = useRef(0)
 
@@ -60,6 +62,7 @@ export default function App(): React.JSX.Element {
   const loadMovies = useCallback(
     async (payload?: MoviesPayload) => {
       bumpGeneration()
+      resetRatings()
       if (!payload) setScanning(true)
       const data = payload ?? (await api.listMovies())
       setScanning(false)
@@ -68,11 +71,13 @@ export default function App(): React.JSX.Element {
         setMovies([])
         return
       }
-      setMovies(data.movies || [])
+      const list = data.movies || []
+      setMovies(list)
       setCurrent(data.folder || '')
       setFolders(data.folders || [])
+      hydrate(list.map((m) => m.path)) // seed ratings already cached on disk
     },
-    [bumpGeneration]
+    [bumpGeneration, resetRatings, hydrate]
   )
 
   useEffect(() => {
@@ -314,6 +319,7 @@ export default function App(): React.JSX.Element {
           onRefresh={() => void loadMovies()}
           onAddFolder={() => void addFolder()}
           onOpenSettings={() => setSettingsOpen(true)}
+          progress={progress}
         />
         <main className={'content' + (fullscreen ? ' fullscreen' : '')}>
           <PlayerPane
@@ -332,6 +338,7 @@ export default function App(): React.JSX.Element {
               filtered={filtered}
               query={query.trim()}
               covers={covers}
+              ratings={ratings}
               selectedPath={selected?.path ?? null}
               scanning={scanning}
               onSelect={(m) => void selectMovie(m)}

@@ -10,7 +10,8 @@ import type { AppSettings } from '../../shared/types'
 const DEFAULTS: AppSettings = {
   autoDownloadUpdates: true,
   defaultVolume: 100,
-  skipSeconds: 10
+  skipSeconds: 10,
+  prefetchRatings: true
 }
 
 function settingsFilePath(): string {
@@ -30,7 +31,9 @@ export function loadSettings(): AppSettings {
           ? data.autoDownloadUpdates
           : DEFAULTS.autoDownloadUpdates,
       defaultVolume: clampVolume(data.defaultVolume),
-      skipSeconds: clampSkip(data.skipSeconds)
+      skipSeconds: clampSkip(data.skipSeconds),
+      prefetchRatings:
+        typeof data.prefetchRatings === 'boolean' ? data.prefetchRatings : DEFAULTS.prefetchRatings
     }
   } catch {
     return { ...DEFAULTS } // malformed settings.json — fall back to defaults

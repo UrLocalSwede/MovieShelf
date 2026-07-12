@@ -11,7 +11,8 @@ interface Props {
 const DEFAULT_SETTINGS: AppSettings = {
   autoDownloadUpdates: true,
   defaultVolume: 100,
-  skipSeconds: 10
+  skipSeconds: 10,
+  prefetchRatings: true
 }
 
 export function SettingsPage({ onClose, onCacheCleared }: Props): React.JSX.Element {
@@ -132,6 +133,23 @@ export function SettingsPage({ onClose, onCacheCleared }: Props): React.JSX.Elem
                 </option>
               ))}
             </select>
+          </label>
+        </section>
+
+        <section className="settings-section">
+          <div className="card-label">Ratings</div>
+          <p className="settings-hint">
+            Fetches every movie’s average rating in the background so the color-coded badges appear
+            across your whole library. Turn this off if it slows things down — each movie’s rating is
+            then fetched and cached the first time you open that movie instead.
+          </p>
+          <label className="settings-field settings-toggle">
+            <input
+              type="checkbox"
+              checked={settings.prefetchRatings}
+              onChange={(e) => setSettings((s) => ({ ...s, prefetchRatings: e.target.checked }))}
+            />
+            <span>Cache all movie ratings in the background</span>
           </label>
         </section>
 

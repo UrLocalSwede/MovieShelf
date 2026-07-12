@@ -106,6 +106,25 @@ export interface CoverResult {
   poster?: string
 }
 
+// Average rating (0–10, or null when unrated/unmatched) plus release year for a movie, derived from
+// its cached Metadata. Surfaced to the grid for the poster badge and for sorting.
+export interface RatingInfo {
+  rating: number | null
+  year: number | null
+}
+
+// A single movie's rating resolving during the background prefetch sweep (main → renderer).
+export interface RatingResolved extends RatingInfo {
+  path: string
+}
+
+// Progress of the background rating prefetch (main → renderer).
+export interface RatingsProgress {
+  done: number
+  total: number
+  running: boolean
+}
+
 // Editable API keys (as stored, no env/sample-key fallbacks) surfaced in the settings page.
 export interface ApiKeysPayload {
   tmdb: string
@@ -117,6 +136,7 @@ export interface AppSettings {
   autoDownloadUpdates: boolean
   defaultVolume: number // 0–100, applied when playback starts
   skipSeconds: number // amount the ±skip buttons jump
+  prefetchRatings: boolean // pre-fetch/cache all ratings in the background; off = cache on view
 }
 
 export interface SubtitleEntry {
@@ -155,6 +175,7 @@ export interface MovieShelfApi {
   removeFolder(path: string): Promise<Result<MoviesPayload>>
   chooseFolder(): Promise<Result<MoviesPayload | ChooseFolderCancelled>>
   getCover(path: string): Promise<Result<CoverResult>>
+  getRatings(paths: string[]): Promise<Result<Record<string, RatingInfo>>>
   getMetadata(path: string): Promise<Result<Metadata>>
   refreshMetadata(path: string): Promise<Result<Metadata>>
   getSubtitles(path: string): Promise<Result<SubtitleEntry[]>>
@@ -205,6 +226,7 @@ export const IPC = {
   removeFolder: 'remove-folder',
   chooseFolder: 'choose-folder',
   getCover: 'get-cover',
+  getRatings: 'get-ratings',
   getMetadata: 'get-metadata',
   refreshMetadata: 'refresh-metadata',
   getSubtitles: 'get-subtitles',
@@ -239,6 +261,8 @@ export const EVT = {
   playbackStatus: 'playback-status', // main → controls overlay (PlaybackStatus patch)
   controlsActive: 'controls-active', // main → controls overlay (boolean: reveal/hide)
   settingsChanged: 'settings-changed', // main → all windows (settings saved; re-read as needed)
+  ratingResolved: 'rating-resolved', // main → all windows (one movie's rating prefetched)
+  ratingsProgress: 'ratings-progress', // main → all windows (prefetch sweep progress)
   requestFullscreenToggle: 'request-fullscreen-toggle', // main → main renderer (App)
   requestExit: 'request-exit', // main → main renderer (App)
   updateAvailable: 'update-available',

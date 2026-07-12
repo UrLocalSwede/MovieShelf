@@ -1,4 +1,5 @@
 import { RefreshIcon, AddFolderIcon, SettingsIcon } from '../icons'
+import type { RatingsProgress } from '@shared/types'
 
 interface Props {
   folders: string[]
@@ -9,6 +10,7 @@ interface Props {
   onRefresh: () => void
   onAddFolder: () => void
   onOpenSettings: () => void
+  progress: RatingsProgress
 }
 
 export function Sidebar({
@@ -19,8 +21,10 @@ export function Sidebar({
   onRemove,
   onRefresh,
   onAddFolder,
-  onOpenSettings
+  onOpenSettings,
+  progress
 }: Props): React.JSX.Element {
+  const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0
   return (
     <aside className="sidebar">
       <div className="card">
@@ -60,6 +64,16 @@ export function Sidebar({
             </li>
           ))}
         </ul>
+        {progress.total > 0 && (
+          <div className="library-progress">
+            <div className="progress-track">
+              <div className="progress-fill" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="progress-label">
+              {progress.running ? `Fetching ratings… ${progress.done}/${progress.total}` : 'Ratings ready'}
+            </span>
+          </div>
+        )}
       </div>
       <div className="sidebar-footer">
         <button className="settings-btn" title="Settings" onClick={onOpenSettings}>

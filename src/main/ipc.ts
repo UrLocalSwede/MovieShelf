@@ -12,6 +12,7 @@ import { readStoredKeys, saveKeys } from './config'
 import { loadSettings, saveSettings } from './appSettings'
 import { clearCache } from './cache'
 import { getCover, getMetadata } from './metadata'
+import * as ratings from './ratings'
 import * as player from './player'
 import { checkForUpdates, quitAndInstall, setAutoDownload } from './updater'
 
@@ -26,15 +27,25 @@ function handle(channel: string, fn: (...args: any[]) => unknown): void {
   })
 }
 
+/** Send an event to every live window (renderer + controls overlay). */
+function broadcast(channel: string, payload?: unknown): void {
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (!w.isDestroyed()) w.webContents.send(channel, payload)
+  }
+}
+
 function moviesPayload(): MoviesPayload {
   const folder = loadFolder()
   const movies = findMovies(folder)
   if (movies.length) saveFolders(loadSavedFolders(), folder)
   log.info(`list_movies: folder=${folder} count=${movies.length}`)
+  const mapped = movies.map((m) => ({ title: m.title, path: m.path }))
+  // Warm every movie's rating in the background (cancels a prior sweep when the library changes).
+  ratings.startPrefetch(mapped.map((m) => m.path), broadcast)
   return {
     folder,
     count: movies.length,
-    movies: movies.map((m) => ({ title: m.title, path: m.path })),
+    movies: mapped,
     folders: loadSavedFolders()
   }
 }
@@ -66,12 +77,26 @@ export function registerIpc(): void {
 
   // -- details & playback ----------------------------------------------------
   handle(IPC.getCover, (path: string) => (path ? getCover(path) : {}))
-  handle(IPC.getMetadata, (path: string) =>
-    path ? getMetadata(path) : { error: 'No movie selected.' }
-  )
-  handle(IPC.refreshMetadata, (path: string) =>
-    path ? getMetadata(path, true) : { error: 'No movie selected.' }
-  )
+  handle(IPC.getRatings, (paths: string[]) => ratings.currentRatings(Array.isArray(paths) ? paths : []))
+  // Opening a movie is foreground work: pause the rating sweep around it so it loads at full speed.
+  handle(IPC.getMetadata, async (path: string) => {
+    if (!path) return { error: 'No movie selected.' }
+    ratings.beginForeground()
+    try {
+      return await getMetadata(path)
+    } finally {
+      ratings.endForeground()
+    }
+  })
+  handle(IPC.refreshMetadata, async (path: string) => {
+    if (!path) return { error: 'No movie selected.' }
+    ratings.beginForeground()
+    try {
+      return await getMetadata(path, true)
+    } finally {
+      ratings.endForeground()
+    }
+  })
   handle(IPC.getSubtitles, (path: string) => findSubtitles(path))
 
   // -- settings --------------------------------------------------------------
@@ -82,12 +107,18 @@ export function registerIpc(): void {
   })
   handle(IPC.getSettings, () => loadSettings())
   handle(IPC.saveSettings, (settings: AppSettings) => {
+    const wasPrefetching = loadSettings().prefetchRatings
     const saved = saveSettings(settings || {})
     setAutoDownload(saved.autoDownloadUpdates) // apply the toggle live
-    // Notify every window (e.g. the controls overlay re-reads skipSeconds for its label).
-    for (const w of BrowserWindow.getAllWindows()) {
-      if (!w.isDestroyed()) w.webContents.send(EVT.settingsChanged)
+    // Apply the background-caching toggle live: stop a running sweep, or start one now.
+    if (wasPrefetching && !saved.prefetchRatings) {
+      ratings.cancelPrefetch()
+      broadcast(EVT.ratingsProgress, { done: 0, total: 0, running: false }) // clear the sidebar bar
+    } else if (!wasPrefetching && saved.prefetchRatings) {
+      ratings.startPrefetch(findMovies(loadFolder()).map((m) => m.path), broadcast)
     }
+    // Notify every window (e.g. the controls overlay re-reads skipSeconds for its label).
+    broadcast(EVT.settingsChanged)
     return saved
   })
   handle(IPC.clearCache, () => {

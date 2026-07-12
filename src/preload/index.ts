@@ -3,6 +3,8 @@ import { IPC, EVT } from '../../shared/types'
 import type {
   MovieShelfApi,
   PlaybackStatus,
+  RatingResolved,
+  RatingsProgress,
   UpdateAvailablePayload,
   UpdateProgressPayload,
   UpdateDownloadedPayload,
@@ -16,6 +18,7 @@ const api: MovieShelfApi = {
   removeFolder: (path) => ipcRenderer.invoke(IPC.removeFolder, path),
   chooseFolder: () => ipcRenderer.invoke(IPC.chooseFolder),
   getCover: (path) => ipcRenderer.invoke(IPC.getCover, path),
+  getRatings: (paths) => ipcRenderer.invoke(IPC.getRatings, paths),
   getMetadata: (path) => ipcRenderer.invoke(IPC.getMetadata, path),
   refreshMetadata: (path) => ipcRenderer.invoke(IPC.refreshMetadata, path),
   getSubtitles: (path) => ipcRenderer.invoke(IPC.getSubtitles, path),
@@ -63,6 +66,12 @@ const events = {
   },
   onSettingsChanged(cb: () => void): () => void {
     return on(EVT.settingsChanged, cb)
+  },
+  onRatingResolved(cb: (p: RatingResolved) => void): () => void {
+    return on(EVT.ratingResolved, cb)
+  },
+  onRatingsProgress(cb: (p: RatingsProgress) => void): () => void {
+    return on(EVT.ratingsProgress, cb)
   },
   onRequestFullscreenToggle(cb: () => void): () => void {
     return on(EVT.requestFullscreenToggle, cb)

@@ -149,6 +149,15 @@ export function SettingsIcon(): React.JSX.Element {
   )
 }
 
+export function ReverseIcon(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 4 V20 M7 4 L4 7 M7 4 L10 7" />
+      <path d="M17 20 V4 M17 20 L14 17 M17 20 L20 17" />
+    </svg>
+  )
+}
+
 export function BackIcon(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
