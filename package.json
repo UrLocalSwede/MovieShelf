@@ -1,0 +1,38 @@
+{
+  "name": "movieshelf",
+  "version": "3.0.0",
+  "description": "A local movie library browser with TMDb/OMDb matching and an in-window mpv player.",
+  "license": "CC-BY-NC-4.0",
+  "author": "UrLocalSwede",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "build": "electron-vite build",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "fetch:deps": "node scripts/fetch-mpv.mjs && node scripts/fetch-uosc.mjs && node scripts/fetch-ffprobe.mjs",
+    "dist": "electron-vite build && electron-builder --publish never",
+    "dist:portable": "electron-vite build && electron-builder --win portable --publish never",
+    "pack": "electron-vite build && electron-builder --dir",
+    "release": "electron-vite build && electron-builder --publish always"
+  },
+  "dependencies": {
+    "@ctrl/video-filename-parser": "^5.11.1",
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.17",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  }
+}

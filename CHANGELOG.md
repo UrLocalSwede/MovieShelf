@@ -3,6 +3,209 @@
 All notable changes to MovieShelf are documented here. This project adheres to
 [Keep a Changelog](https://keepachangelog.com/) conventions.
 
+## [3.0.0] - 2026-07-12
+
+### Changed
+- **Rebuilt as a native Electron app.** The entire project was ported from Python (pywebview +
+  python-mpv) to Electron with a **React + TypeScript** renderer and a **TypeScript main process**.
+  All backend logic — folder scanning, filename parsing, media fingerprinting, TMDb/OMDb matching,
+  caching, and trailer detection — was reimplemented in Node/TypeScript. No Python is required at
+  runtime.
+- **Playback** now embeds a bundled **mpv.exe** into a frameless, non-activating child window via
+  `--wid`, controlled over mpv's JSON-IPC named pipe. This replaces the hand-rolled Win32 overlay
+  (`winembed.py`) and its DPI/threading machinery — Electron owns the window and handles per-monitor
+  DPI, so the overlay stays glued to the video pane on move/resize/fullscreen without any ctypes.
+- **Media fingerprinting** now uses bundled **ffprobe** instead of pymediainfo.
+- **Filename parsing** now uses `@ctrl/video-filename-parser` (with the same regex-clean fallback)
+  instead of guessit. Title-similarity scoring reproduces Python's difflib (Ratcliff/Obershelp) so
+  match confidence is unchanged.
+- **Packaging** moved from PyInstaller to **electron-builder** (NSIS installer + portable exe).
+
+### Preserved
+- The `%APPDATA%\MovieShelf` data layout (`settings.txt`, `config.json`, `cache/`) is unchanged and
+  reused — existing libraries, API keys, and cached metadata/artwork carry over. Cache keys are
+  byte-identical to the previous version.
+
+### Removed
+- The Python package (`src/movieshelf`), PyInstaller spec, and `requirements.txt` / `pyproject.toml`.
+- The WebView2 runtime dependency (Electron ships its own Chromium).
+
+## [2.3.10] - 2026-07-02
+
+### Fixed
+- **Clicking the video in fullscreen froze the app (and playback keys stopped working).** The mpv core
+  was created with `input_vo_keyboard=True`, so the video-output window grabbed keyboard focus /
+  foreground when clicked. That stole focus from the WebView (so the web UI's key forwarding stopped —
+  "controls don't work"), and put foreground on a player-thread window; the next alt-tab activation
+  round-trip then attached the GUI thread's input queue to the player thread, hanging the UI while
+  audio/video kept playing. mpv now runs with `input_vo_keyboard=False` (keys are forwarded from the
+  web UI, as the design intends), so the surface never takes focus. The overlay window also now returns
+  `MA_NOACTIVATE` to `WM_MOUSEACTIVATE` as defense-in-depth, so a click can never foreground it.
+
+## [2.3.9] - 2026-07-01
+
+### Fixed
+- **The whole app froze when entering fullscreen.** Fullscreen sizing had the mpv host thread start
+  repositioning the overlay to cover the monitor *at the same time* pywebview's `toggle_fullscreen`
+  reconfigured the owner window on the GUI thread. Because the overlay is an owned window on a
+  different thread and the GUI thread doesn't pump messages during that transition, the two
+  cross-thread `SetWindowPos` calls waited on each other — a deadlock. (Dragging never hit this: the
+  drag modal loop keeps pumping.) Overlay repositioning is now **suspended during the window
+  transition** (the host thread keeps pumping, so no deadlock) and resumes immediately after, applying
+  the monitor/pane geometry on its next tick. Also removed the `restored`/`maximized` window-event
+  handlers that fired background-thread `SetWindowPos` on the overlay mid-transition (redundant now
+  that the host thread tracks position continuously).
+
+## [2.3.8] - 2026-07-01
+
+### Fixed
+- **Exiting fullscreen didn't restore the window.** Clicking the button in fullscreen shrank the
+  video and brought the grid back, but the window stayed fullscreen-sized. `set_fullscreen` resolved
+  the window via `webview.active_window()` (WinForms `ActiveForm`), which is `None` once the user
+  interacts with the mpv overlay — so the exit `toggle_fullscreen()` was silently skipped. It now uses
+  the stable `webview.windows[0]` handle and is idempotent (only toggles when the backend's real
+  `is_fullscreen` differs from the requested state), so the window reliably enters and exits
+  fullscreen and can't desync from the UI.
+
+### Changed
+- The Fullscreen button now relabels to **"Exit fullscreen"** while fullscreen (and back to
+  "Fullscreen" otherwise), so its action is clear.
+
+## [2.3.7] - 2026-07-01
+
+### Fixed
+- **Fullscreen enlarged only the app, not the video.** The overlay was resized by a JS
+  `(0,0, innerWidth, innerHeight)` call fired on a timer, which was `innerWidth`/timing-dependent and
+  raced with the new host-thread position tracker — so the video kept its pane-sized rectangle while
+  the window went fullscreen. Fullscreen video is now driven from the mpv host thread: while
+  fullscreen it positions the overlay to cover the **whole monitor** (`GetMonitorInfo`, matching the
+  bounds pywebview sizes the fullscreen window to), deterministically and every tick. The UI now only
+  reports the pane rect in windowed mode, so exiting fullscreen snaps the video straight back to the
+  pane. New `winembed.monitor_rect`/`set_screen_rect`; `player.set_fullscreen`.
+
+## [2.3.6] - 2026-07-01
+
+### Problem Found
+- **The embedded video didn't stay attached to its pane while dragging the window — the gap grew the
+  further the window was moved.** Diagnostic logs showed the placement math was correct (and the
+  display was at 100 %, so this was not a DPI issue): the overlay is an *owned* top-level window,
+  which — unlike a child window — does not move with its owner, so it must be repositioned explicitly.
+  That was driven only by pywebview's `moved` event, which is unreliable during a live modal
+  window-drag and dispatches each fire on a new background thread doing a blocking cross-thread
+  `SetWindowPos`. So the overlay lagged behind the window during a drag. Overlay tracking now runs
+  **continuously on the mpv host thread's own message-pump loop** (~200 Hz) — the thread that owns the
+  overlay, so `SetWindowPos` is instant and in-thread — re-gluing it to the pane whenever the window
+  moves. This complements the 2.3.5 per-monitor-v2 change (which keeps it correct across display
+  scales); together the video stays locked to the pane on any monitor.
+
+## [2.3.5] - 2026-07-01
+
+### Problem Found
+- **The embedded video drifted away from its pane — further the more the window was dragged from its
+  starting position — and was mis-placed on secondary / differently-scaled monitors.** pywebview
+  initializes the process as only *System*-DPI-aware (`user32.SetProcessDPIAware`), so
+  `GetDpiForWindow` returned the **primary** monitor's scale and Windows DPI-virtualized the window on
+  any other-scaled monitor — while the WebView2 content renders **per-monitor** aware. The overlay was
+  therefore positioned in a different coordinate space than the pane, producing an error that scaled
+  with distance from the origin (≈0 on a single-monitor 100% machine, which is why it couldn't be
+  reproduced there). MovieShelf now opts into **Per-Monitor-v2 DPI awareness at startup**, before
+  pywebview's legacy call, so `GetDpiForWindow`, `ClientToScreen`/`SetWindowPos`, and WebView2 share
+  one coordinate space and the overlay stays glued to the pane on any monitor at any display scale.
+
+### Fixed
+- **Playback failures left a stuck black video pane with no explanation.** The pane now closes cleanly
+  on error and the reason is shown in the detail view's status line (previously never populated).
+- **Subtitles named `Movie.en.srt` / `Movie-eng.srt` weren't detected.** Subtitle matching now treats
+  `.`, `-`, and `_` — not just a space — as the boundary before a language/flag suffix.
+- **A stray black overlay could linger when embedded mpv failed and fell back** to VLC / the OS
+  default player; the overlay is now hidden before falling back.
+- **Saved library folders on an offline network share were silently forgotten** on the next scan
+  (they were pruned by an `os.path.isdir` check). Saved folders are now kept regardless of whether
+  they are currently reachable.
+- Declared missing ctypes signatures in `winembed.py` (`GetWindowRect`, `TranslateMessage`,
+  `DispatchMessageW`, `GetModuleHandleW`) so 64-bit window/module handles aren't truncated.
+
+### Added
+- **Remove a saved folder** from the sidebar (a small × on each entry), now that offline folders are
+  no longer auto-pruned.
+- A "No titles match …" hint when a search filters out every movie in a non-empty library.
+
+### Changed
+- The startup log records the effective DPI-awareness mode (`dpi=per-monitor-v2`).
+- `pyproject.toml` now bundles `mpv_config/**` as package data; removed an unused import in the TMDb
+  client.
+
+## [2.3.4] - 2026-06-29
+
+### Changed
+- Added diagnostic logging of the video overlay's geometry (window DPI, scale, client origin,
+  requested vs. resulting rectangle, monitor) to `movieshelf.log`, to pin down a report of the
+  overlay being mis-placed on a specific multi-monitor setup that could not be reproduced on a
+  single-monitor 100% machine.
+- Sidebar stat now reads "built-in player" instead of the stale "VLC preferred".
+
+## [2.3.3] - 2026-06-29
+
+### Problem Found
+- **Video overlay drifted (≈2× on a scaled display) when dragging the window, and fullscreen didn't
+  resize the video.** The pane rectangle was multiplied by the browser `devicePixelRatio`, but the
+  WebView reports a per-monitor scale that can differ from the System-aware DPI the Win32
+  positioning APIs (`ClientToScreen`/`SetWindowPos`) actually use — so on a scaled/secondary monitor
+  the offset was mis-scaled and the fullscreen size was wrong. The overlay is now positioned from the
+  owner window's own DPI (`GetDpiForWindow`), inside the owner's DPI context, with the pane rect
+  reported in CSS/logical pixels — keeping the video in the same coordinate space as the window at
+  any display scale.
+
+## [2.3.2] - 2026-06-29
+
+### Worked on
+- **Freeze when clicking/hovering the playing video.** The video overlay was an activatable window,
+  so interacting with it stole foreground from the web UI (and coupled the threads' input queues),
+  freezing the interface until another app was focused. The overlay is now created with
+  `WS_EX_NOACTIVATE`, so it never takes focus — the web UI stays responsive while video plays. Mouse
+  (uosc) controls still work.
+- **White box inside the video while dragging the window.** The overlay used the system `STATIC`
+  class (white background brush); it now uses a custom class with a black background, so repositioning
+  no longer flashes white.
+- **Fullscreen only enlarged the frame, not the video.** In fullscreen the overlay now fills the
+  entire window client area instead of tracking the (smaller) pane rectangle.
+- **Stop left the movie playing.** The overlay is now hidden before issuing the mpv stop, so video
+  and audio stop immediately and the surface disappears.
+
+### Added
+- **Keyboard transport control.** Because the video surface can't hold focus, Space (pause), ←/→
+  (seek), ↑/↓ (volume), `m` (mute) and `f` (fullscreen) are forwarded from the app to mpv while a
+  movie is playing.
+
+## [2.3.1] - 2026-06-29
+
+### Problem Found
+- **UI froze after a movie started playing.** mpv creates its *own* video window on its own thread;
+  when that window is a `WS_CHILD` of the app window, Windows implicitly `AttachThreadInput`s the two
+  threads' input queues, coupling mpv's busy, focus-grabbing thread to pywebview's GUI thread — so
+  once a movie played, the whole window stopped responding to input (the message loop itself stayed
+  alive, confirming input-queue starvation rather than a hang). The video now renders into a
+  borderless, **owned top-level window** positioned exactly over the video pane instead of a child
+  window: it still looks embedded (no pop-out) and floats above / minimizes with the app window, but
+  shares no input queue with the GUI thread, so the UI stays responsive during playback. The overlay
+  is kept glued to the pane as the window resizes/moves/restores.
+
+## [2.3.0] - 2026-06-29
+
+### Added
+- **In-window player (no more pop-out).** mpv now renders into a child surface embedded in the
+  MovieShelf window (libmpv `wid`), shown in a **split view**: video on top, the library grid still
+  scrollable below so you can browse while watching. A **Fullscreen** toggle expands the video to the
+  whole window (Esc returns); **Close**/Esc stops and returns to the library.
+- **Polished controls via [uosc](https://github.com/tomasklaen/uosc)** — a modern mpv OSC (timeline,
+  volume, subtitle/audio menus, chapters) themed to the crimson accent, bundled in `mpv_config/`.
+- `winembed.py` (ctypes Win32 helpers) and a dedicated player **host thread** that owns the video
+  window + mpv core and pumps messages. `tools/fetch_uosc.py` vendors uosc; `config.mpv_config_dir()`.
+
+### Changed
+- The player no longer opens a separate window. If embedding is unavailable it falls back to a pop-out
+  mpv window, then VLC / the OS default.
+
 ## [2.2.0] - 2026-06-29
 
 ### Added

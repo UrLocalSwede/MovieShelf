@@ -1,5 +1,0 @@
-pywebview>=5.0
-guessit>=3.8
-pymediainfo>=6.1
-python-mpv>=1.0
-

@@ -1,25 +1,23 @@
+# ---- Dependencies ----
+node_modules/
+
 # ---- Build output ----
-# Keep build/MovieShelf.spec, ignore PyInstaller work dirs and the final exe.
-build/*/
+# electron-vite bundles (main/preload/renderer)
+out/
+# electron-builder installers + win-unpacked (large; never commit)
 dist/
 
-# Vendored native libs (fetched via tools/fetch_libmpv.py, not committed)
-vendor/
-
-# ---- Python ----
-__pycache__/
-*.py[cod]
-*.egg-info/
-.eggs/
-.venv/
-venv/
-env/
+# ---- Fetched runtime binaries (run `npm run fetch:deps`) ----
+# The bundled uosc config under resources/mpv_config/ IS committed (incl. our custom
+# mpv.conf and script-opts/uosc.conf); only the large downloaded engines are ignored.
+resources/mpv/
+resources/ffprobe/
+resources/.build/
 
 # ---- Local / generated state ----
-settings.txt          # legacy local settings (now stored in %APPDATA%\MovieShelf)
-config.json           # may contain API keys — never commit
+# config.json may contain API keys — never commit
+config.json
 *.log
-tools/
 
 # ---- Editor / tooling ----
 .claude/

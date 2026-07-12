@@ -1,0 +1,50 @@
+appId: com.movieshelf.app
+productName: MovieShelf
+directories:
+  output: dist
+# Auto-update feed: public GitHub Releases. electron-builder writes app-update.yml into the app
+# and (on `npm run release`, with GH_TOKEN set) uploads latest.yml + installer + blockmap here.
+publish:
+  provider: github
+  owner: UrLocalSwede
+  repo: MovieShelf
+# electron-vite emits main/preload/renderer under out/. electron-updater is require()d at runtime,
+# so production node_modules are shipped (below).
+files:
+  - out/**/*
+  - package.json
+  # electron-updater must be require-able at runtime; ship production node_modules
+  # (electron-builder prunes dev deps automatically).
+  - node_modules/**/*
+# Spawnable binaries + mpv config must be real files (not inside asar).
+extraResources:
+  - from: resources/mpv
+    to: mpv
+    filter: ['**/*']
+  - from: resources/ffprobe
+    to: ffprobe
+    filter: ['**/*']
+  - from: resources/mpv_config
+    to: mpv_config
+    filter: ['**/*']
+  - from: resources/icon.ico
+    to: icon.ico
+asar: true
+win:
+  icon: resources/icon.ico
+  # This build host lacks the symlink privilege that electron-builder's winCodeSign extraction
+  # needs (used for signing + rcedit exe-icon embedding). Skip it; the app sets its window/taskbar
+  # icon at runtime instead. Build on a machine with Developer Mode enabled to embed the exe icon.
+  signAndEditExecutable: false
+  target:
+    - target: nsis
+    - target: portable
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: MovieShelf
+  # Match latest.yml's normalized name so the update feed and the on-disk asset never mismatch.
+  artifactName: MovieShelf-Setup-${version}.${ext}
+portable:
+  artifactName: MovieShelf-${version}-portable.exe
