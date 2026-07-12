@@ -224,12 +224,22 @@ export default function App(): React.JSX.Element {
     const off = window.events?.onPlaybackEnded(() => {
       if (playingRef.current) void actions.current.exitPlayer()
     })
+    // The controls overlay drives fullscreen/exit through App's existing handlers so region sync
+    // and pane state stay consistent (the overlay never touches App layout directly).
+    const offFs = window.events?.onRequestFullscreenToggle(() => {
+      if (playingRef.current) void actions.current.toggleFullscreen()
+    })
+    const offExit = window.events?.onRequestExit(() => {
+      if (playingRef.current) void actions.current.exitPlayer()
+    })
 
     return () => {
       document.removeEventListener('keydown', onKey)
       window.removeEventListener('resize', onResize)
       ro.disconnect()
       off?.()
+      offFs?.()
+      offExit?.()
     }
   }, [])
 

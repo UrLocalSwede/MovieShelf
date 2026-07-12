@@ -5,6 +5,17 @@ import { spawn, type ChildProcess } from 'child_process'
 import net from 'net'
 import { mpvConfigDir, mpvExe } from '../config'
 import { log } from '../logging'
+import type { PlaybackStatus } from '../../../shared/types'
+
+// mpv observe_property ids → PlaybackStatus fields.
+const OBSERVED: Array<[number, string, keyof PlaybackStatus]> = [
+  [1, 'time-pos', 'timePos'],
+  [2, 'duration', 'duration'],
+  [3, 'pause', 'pause'],
+  [4, 'volume', 'volume'],
+  [5, 'mute', 'mute'],
+  [6, 'sub-visibility', 'subVisible']
+]
 
 export class Mpv {
   private proc: ChildProcess | null = null
@@ -12,7 +23,9 @@ export class Mpv {
   private readonly pipeName = `\\\\.\\pipe\\movieshelf-mpv-${process.pid}`
   private buffer = ''
   private pendingSub = ''
+  private lastTimeEmit = 0 // ms of the last forwarded time-pos, for throttling
   onEndFile?: () => void
+  onStatus?: (patch: Partial<PlaybackStatus>) => void
 
   isRunning(): boolean {
     return this.proc !== null && this.sock !== null
@@ -49,6 +62,7 @@ export class Mpv {
         s.on('connect', () => {
           this.sock = s
           this.setup(s)
+          for (const [id, prop] of OBSERVED) this.command(['observe_property', id, prop])
           log.info('mpv IPC connected')
           resolve()
         })
@@ -95,6 +109,30 @@ export class Mpv {
       this.command(['sub-add', sub, 'select'])
     } else if (msg.event === 'end-file') {
       this.onEndFile?.()
+    } else if (msg.event === 'property-change') {
+      this.onProperty(msg.name, msg.data)
+    }
+  }
+
+  private onProperty(name: string, data: unknown): void {
+    if (!this.onStatus) return
+    const field = OBSERVED.find(([, prop]) => prop === name)?.[2]
+    if (!field) return
+    // Throttle the high-frequency time-pos stream so IPC isn't flooded.
+    if (field === 'timePos') {
+      const now = Date.now()
+      if (now - this.lastTimeEmit < 250) return
+      this.lastTimeEmit = now
+    }
+    // mpv reports null for time-pos/duration until a file is loaded; coerce to numbers/booleans.
+    switch (field) {
+      case 'timePos':
+      case 'duration':
+      case 'volume':
+        this.onStatus({ [field]: typeof data === 'number' ? data : 0 } as Partial<PlaybackStatus>)
+        break
+      default:
+        this.onStatus({ [field]: Boolean(data) } as Partial<PlaybackStatus>)
     }
   }
 
@@ -114,6 +152,36 @@ export class Mpv {
 
   keypress(name: string): void {
     if (name) this.command(['keypress', name])
+  }
+
+  // Re-arm the property observers so mpv re-fires their current values. Used when the controls
+  // renderer (re)loads after mpv is already running, so its UI shows the true state immediately.
+  refreshStatus(): void {
+    this.lastTimeEmit = 0
+    for (const [id, prop] of OBSERVED) {
+      this.command(['unobserve_property', id])
+      this.command(['observe_property', id, prop])
+    }
+  }
+
+  seek(seconds: number, mode: 'absolute' | 'relative'): void {
+    this.command(['seek', seconds, mode])
+  }
+
+  setPause(paused: boolean): void {
+    this.command(['set_property', 'pause', paused])
+  }
+
+  setVolume(volume: number): void {
+    this.command(['set_property', 'volume', volume])
+  }
+
+  setMute(muted: boolean): void {
+    this.command(['set_property', 'mute', muted])
+  }
+
+  setSubVisibility(visible: boolean): void {
+    this.command(['set_property', 'sub-visibility', visible])
   }
 
   stop(): void {

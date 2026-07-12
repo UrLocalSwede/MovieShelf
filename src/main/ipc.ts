@@ -3,7 +3,7 @@
 // across the boundary — matching api.py's _bridge decorator.
 
 import { BrowserWindow, dialog, ipcMain } from 'electron'
-import { IPC } from '../../shared/types'
+import { IPC, EVT } from '../../shared/types'
 import type { MoviesPayload } from '../../shared/types'
 import { log } from './logging'
 import { findMovies, findSubtitles } from './library'
@@ -92,6 +92,43 @@ export function registerIpc(): void {
 
   handle(IPC.playerKey, (name: string) => {
     player.sendKey(name || '')
+    return { ok: true }
+  })
+
+  // mpv-level commands from the controls overlay — go straight to the player.
+  handle(IPC.playerSeek, (seconds: number) => {
+    player.seek(Number(seconds))
+    return { ok: true }
+  })
+  handle(IPC.playerSkip, (delta: number) => {
+    player.skip(Number(delta))
+    return { ok: true }
+  })
+  handle(IPC.playerSetPause, (paused: boolean) => {
+    player.setPause(Boolean(paused))
+    return { ok: true }
+  })
+  handle(IPC.playerSetVolume, (volume: number) => {
+    player.setVolume(Number(volume))
+    return { ok: true }
+  })
+  handle(IPC.playerSetMute, (muted: boolean) => {
+    player.setMute(Boolean(muted))
+    return { ok: true }
+  })
+  handle(IPC.playerToggleSub, (visible: boolean) => {
+    player.toggleSub(Boolean(visible))
+    return { ok: true }
+  })
+
+  // Fullscreen/exit change App-level layout + region sync, so route them back to the main
+  // renderer to run through App's existing handlers rather than acting on the overlay directly.
+  handle(IPC.controlsFullscreenToggle, () => {
+    player.requestMainEvent(EVT.requestFullscreenToggle)
+    return { ok: true }
+  })
+  handle(IPC.controlsExit, () => {
+    player.requestMainEvent(EVT.requestExit)
     return { ok: true }
   })
 

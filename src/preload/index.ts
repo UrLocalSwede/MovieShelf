@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC, EVT } from '../../shared/types'
 import type {
   MovieShelfApi,
+  PlaybackStatus,
   UpdateAvailablePayload,
   UpdateProgressPayload,
   UpdateDownloadedPayload,
@@ -22,6 +23,14 @@ const api: MovieShelfApi = {
   playTrailer: (trailerPath) => ipcRenderer.invoke(IPC.playTrailer, trailerPath),
   stopPlayback: () => ipcRenderer.invoke(IPC.stopPlayback),
   playerKey: (name) => ipcRenderer.invoke(IPC.playerKey, name),
+  playerSeek: (seconds) => ipcRenderer.invoke(IPC.playerSeek, seconds),
+  playerSkip: (delta) => ipcRenderer.invoke(IPC.playerSkip, delta),
+  playerSetPause: (paused) => ipcRenderer.invoke(IPC.playerSetPause, paused),
+  playerSetVolume: (volume) => ipcRenderer.invoke(IPC.playerSetVolume, volume),
+  playerSetMute: (muted) => ipcRenderer.invoke(IPC.playerSetMute, muted),
+  playerToggleSub: (visible) => ipcRenderer.invoke(IPC.playerToggleSub, visible),
+  controlsFullscreenToggle: () => ipcRenderer.invoke(IPC.controlsFullscreenToggle),
+  controlsExit: () => ipcRenderer.invoke(IPC.controlsExit),
   showVideo: () => ipcRenderer.invoke(IPC.showVideo),
   hideVideo: () => ipcRenderer.invoke(IPC.hideVideo),
   setPlayerRegion: (x, y, w, h) => ipcRenderer.invoke(IPC.setPlayerRegion, x, y, w, h),
@@ -40,6 +49,18 @@ function on<T>(channel: string, cb: (payload: T) => void): () => void {
 const events = {
   onPlaybackEnded(cb: () => void): () => void {
     return on(EVT.playbackEnded, cb)
+  },
+  onPlaybackStatus(cb: (p: Partial<PlaybackStatus>) => void): () => void {
+    return on(EVT.playbackStatus, cb)
+  },
+  onControlsActive(cb: (active: boolean) => void): () => void {
+    return on(EVT.controlsActive, cb)
+  },
+  onRequestFullscreenToggle(cb: () => void): () => void {
+    return on(EVT.requestFullscreenToggle, cb)
+  },
+  onRequestExit(cb: () => void): () => void {
+    return on(EVT.requestExit, cb)
   },
   onUpdateAvailable(cb: (p: UpdateAvailablePayload) => void): () => void {
     return on(EVT.updateAvailable, cb)

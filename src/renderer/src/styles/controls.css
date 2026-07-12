@@ -1,0 +1,200 @@
+/* Playback controls overlay — hosted in its own transparent BrowserWindow above the mpv surface.
+   Reuses the "Crimson Dark" tokens from global.css. */
+
+/* Beat global.css's opaque html/body background so the video shows through (Design A). For the
+   opaque-strip fallback (Design B) the window itself is black, so transparent here is harmless. */
+html,
+body,
+#root {
+  background: transparent !important;
+  overflow: hidden;
+}
+
+.controls-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  pointer-events: none; /* transparent gaps never swallow input */
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+.controls-overlay.visible {
+  opacity: 1;
+}
+
+.ctl-bar {
+  pointer-events: auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 40px 22px 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(9, 8, 10, 0) 0%,
+    rgba(9, 8, 10, 0.55) 35%,
+    rgba(9, 8, 10, 0.92) 100%
+  );
+  color: var(--text);
+  user-select: none;
+}
+
+/* ---- progress row ---- */
+.ctl-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ctl-time {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  min-width: 44px;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.ctl-progress {
+  position: relative;
+  flex: 1;
+  height: 16px; /* generous hit area; the visible track is centered inside */
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  touch-action: none;
+}
+.ctl-progress::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.25);
+  transition: height 0.12s ease;
+}
+.ctl-progress:hover::before,
+.ctl-progress:active::before {
+  height: 7px;
+}
+.ctl-progress-fill {
+  position: absolute;
+  left: 0;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--accent-grad);
+  transition: height 0.12s ease;
+  pointer-events: none;
+}
+.ctl-progress:hover .ctl-progress-fill,
+.ctl-progress:active .ctl-progress-fill {
+  height: 7px;
+}
+.ctl-progress-thumb {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.12s ease;
+  pointer-events: none;
+}
+.ctl-progress:hover .ctl-progress-thumb,
+.ctl-progress:active .ctl-progress-thumb {
+  transform: translate(-50%, -50%) scale(1);
+}
+.ctl-scrub {
+  position: absolute;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: rgba(9, 8, 10, 0.95);
+  border: 1px solid var(--border-strong);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ---- buttons ---- */
+.ctl-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ctl-cluster {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ctl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, transform 0.08s ease;
+}
+.ctl-btn svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.ctl-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.ctl-btn:active {
+  transform: scale(0.92);
+}
+.ctl-btn-primary {
+  width: 48px;
+  height: 48px;
+  background: var(--accent-grad);
+  color: #fff;
+}
+.ctl-btn-primary:hover {
+  filter: brightness(1.1);
+  background: var(--accent-grad);
+}
+.ctl-btn-on {
+  color: var(--accent);
+}
+
+/* ---- volume ---- */
+.ctl-volume {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ctl-volume-slider {
+  width: 90px;
+  height: 5px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+.ctl-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+}

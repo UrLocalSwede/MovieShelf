@@ -122,6 +122,18 @@ export interface PlayResult {
   embedded: boolean
 }
 
+// Live playback telemetry pushed from mpv (main) to the controls overlay renderer.
+// Fields arrive incrementally as mpv property observers fire, so the renderer merges
+// each patch into its running state.
+export interface PlaybackStatus {
+  timePos: number // seconds, current position
+  duration: number // seconds, 0 until known
+  pause: boolean
+  volume: number // mpv scale (~0–130)
+  mute: boolean
+  subVisible: boolean
+}
+
 // The full renderer-facing API surface (mirrors api.py's Api class).
 export interface MovieShelfApi {
   listState(): Promise<Result<ListState>>
@@ -137,6 +149,14 @@ export interface MovieShelfApi {
   playTrailer(trailerPath: string): Promise<Result<PlayResult>>
   stopPlayback(): Promise<Result<{ stopped: true }>>
   playerKey(name: string): Promise<Result<{ ok: true }>>
+  playerSeek(seconds: number): Promise<Result<{ ok: true }>> // absolute position
+  playerSkip(delta: number): Promise<Result<{ ok: true }>> // relative ±seconds
+  playerSetPause(paused: boolean): Promise<Result<{ ok: true }>>
+  playerSetVolume(volume: number): Promise<Result<{ ok: true }>>
+  playerSetMute(muted: boolean): Promise<Result<{ ok: true }>>
+  playerToggleSub(visible: boolean): Promise<Result<{ ok: true }>>
+  controlsFullscreenToggle(): Promise<Result<{ ok: true }>> // overlay → main → App
+  controlsExit(): Promise<Result<{ ok: true }>> // overlay → main → App
   showVideo(): Promise<Result<{ ok: true }>>
   hideVideo(): Promise<Result<{ ok: true }>>
   setPlayerRegion(x: number, y: number, w: number, h: number): Promise<Result<{ ok: true }>>
@@ -174,6 +194,14 @@ export const IPC = {
   playTrailer: 'play-trailer',
   stopPlayback: 'stop-playback',
   playerKey: 'player-key',
+  playerSeek: 'player-seek',
+  playerSkip: 'player-skip',
+  playerSetPause: 'player-set-pause',
+  playerSetVolume: 'player-set-volume',
+  playerSetMute: 'player-set-mute',
+  playerToggleSub: 'player-toggle-sub',
+  controlsFullscreenToggle: 'controls-fullscreen-toggle',
+  controlsExit: 'controls-exit',
   showVideo: 'show-video',
   hideVideo: 'hide-video',
   setPlayerRegion: 'set-player-region',
@@ -185,6 +213,10 @@ export const IPC = {
 // Main → renderer events.
 export const EVT = {
   playbackEnded: 'playback-ended',
+  playbackStatus: 'playback-status', // main → controls overlay (PlaybackStatus patch)
+  controlsActive: 'controls-active', // main → controls overlay (boolean: reveal/hide)
+  requestFullscreenToggle: 'request-fullscreen-toggle', // main → main renderer (App)
+  requestExit: 'request-exit', // main → main renderer (App)
   updateAvailable: 'update-available',
   updateProgress: 'update-progress',
   updateDownloaded: 'update-downloaded',
