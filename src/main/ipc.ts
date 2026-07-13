@@ -3,11 +3,13 @@
 // across the boundary — matching api.py's _bridge decorator.
 
 import { BrowserWindow, dialog, ipcMain } from 'electron'
-import { IPC, EVT } from '../../shared/types'
+import { IPC, EVT, ALL_LIBRARIES } from '../../shared/types'
 import type { ApiKeysPayload, AppSettings, MoviesPayload } from '../../shared/types'
 import { log } from './logging'
-import { findMovies, findSubtitles } from './library'
-import { loadFolder, loadSavedFolders, saveFolders } from './settings'
+import { findSubtitles } from './library'
+import { listCollections } from './collections'
+import { currentFolder, currentMovies, isViewAll, setViewAll } from './view'
+import { loadSavedFolders, saveFolders } from './settings'
 import { readStoredKeys, saveKeys } from './config'
 import { loadSettings, saveSettings } from './appSettings'
 import { clearCache } from './cache'
@@ -35,10 +37,11 @@ function broadcast(channel: string, payload?: unknown): void {
 }
 
 function moviesPayload(): MoviesPayload {
-  const folder = loadFolder()
-  const movies = findMovies(folder)
-  if (movies.length) saveFolders(loadSavedFolders(), folder)
-  log.info(`list_movies: folder=${folder} count=${movies.length}`)
+  const folder = currentFolder()
+  const movies = currentMovies()
+  // Keep the single active folder recorded as "current" (first); never persist the ALL sentinel.
+  if (!isViewAll() && movies.length) saveFolders(loadSavedFolders(), folder)
+  log.info(`list_movies: folder=${isViewAll() ? 'ALL' : folder} count=${movies.length}`)
   const mapped = movies.map((m) => ({ title: m.title, path: m.path }))
   // Warm every movie's rating in the background (cancels a prior sweep when the library changes).
   ratings.startPrefetch(mapped.map((m) => m.path), broadcast)
@@ -52,15 +55,22 @@ function moviesPayload(): MoviesPayload {
 
 export function registerIpc(): void {
   // -- library ---------------------------------------------------------------
-  handle(IPC.listState, () => ({ folders: loadSavedFolders(), current: loadFolder() }))
+  handle(IPC.listState, () => ({ folders: loadSavedFolders(), current: currentFolder() }))
   handle(IPC.listMovies, () => moviesPayload())
+  handle(IPC.listCollections, () => listCollections())
 
   handle(IPC.setFolder, (path: string) => {
+    if (path === ALL_LIBRARIES) {
+      setViewAll(true) // combined view of every saved folder
+      return moviesPayload()
+    }
+    setViewAll(false)
     saveFolders([path, ...loadSavedFolders().filter((p) => p !== path)], path)
     return moviesPayload()
   })
 
   handle(IPC.removeFolder, (path: string) => {
+    // Stay in whatever view is active; the combined list just recomputes without this folder.
     saveFolders(loadSavedFolders().filter((p) => p !== path))
     return moviesPayload()
   })
@@ -71,6 +81,7 @@ export function registerIpc(): void {
     const result = await dialog.showOpenDialog(win, { properties: ['openDirectory'] })
     if (result.canceled || result.filePaths.length === 0) return { cancelled: true }
     const folder = result.filePaths[0]
+    setViewAll(false) // adding a folder switches to it
     saveFolders([folder, ...loadSavedFolders()], folder)
     return moviesPayload()
   })
@@ -115,7 +126,7 @@ export function registerIpc(): void {
       ratings.cancelPrefetch()
       broadcast(EVT.ratingsProgress, { done: 0, total: 0, running: false }) // clear the sidebar bar
     } else if (!wasPrefetching && saved.prefetchRatings) {
-      ratings.startPrefetch(findMovies(loadFolder()).map((m) => m.path), broadcast)
+      ratings.startPrefetch(currentMovies().map((m) => m.path), broadcast)
     }
     // Notify every window (e.g. the controls overlay re-reads skipSeconds for its label).
     broadcast(EVT.settingsChanged)

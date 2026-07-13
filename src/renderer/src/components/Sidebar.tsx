@@ -1,10 +1,13 @@
-import { RefreshIcon, AddFolderIcon, SettingsIcon } from '../icons'
+import { RefreshIcon, AddFolderIcon, SettingsIcon, LibraryIcon, CollectionsIcon } from '../icons'
+import { ALL_LIBRARIES } from '@shared/types'
 import type { RatingsProgress } from '@shared/types'
 
 interface Props {
   folders: string[]
   current: string
   count: number
+  view: 'library' | 'collections'
+  onSetView: (view: 'library' | 'collections') => void
   onSwitch: (folder: string) => void
   onRemove: (folder: string) => void
   onRefresh: () => void
@@ -17,6 +20,8 @@ export function Sidebar({
   folders,
   current,
   count,
+  view,
+  onSetView,
   onSwitch,
   onRemove,
   onRefresh,
@@ -27,9 +32,25 @@ export function Sidebar({
   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0
   return (
     <aside className="sidebar">
+      <nav className="sidebar-nav">
+        <button
+          className={'nav-btn' + (view === 'library' ? ' active' : '')}
+          onClick={() => onSetView('library')}
+        >
+          <LibraryIcon />
+          <span>Library</span>
+        </button>
+        <button
+          className={'nav-btn' + (view === 'collections' ? ' active' : '')}
+          onClick={() => onSetView('collections')}
+        >
+          <CollectionsIcon />
+          <span>Collections</span>
+        </button>
+      </nav>
       <div className="card">
         <div className="card-label">Current folder</div>
-        <div className="folder-path">{current || '—'}</div>
+        <div className="folder-path">{current === ALL_LIBRARIES ? 'All libraries' : current || '—'}</div>
       </div>
       <div className="card stat">
         <div className="stat-num">{count}</div>
@@ -47,6 +68,14 @@ export function Sidebar({
             </button>
           </div>
         </div>
+        <button
+          className={'all-libraries' + (current === ALL_LIBRARIES ? ' active' : '')}
+          title="Show movies from every saved library"
+          onClick={() => onSwitch(ALL_LIBRARIES)}
+        >
+          <LibraryIcon />
+          <span>All libraries</span>
+        </button>
         <ul className="library-list">
           {folders.map((folder) => (
             <li key={folder} className={folder === current ? 'active' : ''} onClick={() => onSwitch(folder)}>

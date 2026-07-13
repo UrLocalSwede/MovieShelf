@@ -9,7 +9,7 @@ import { SettingsPage } from './components/SettingsPage'
 import { UpdateBanner } from './components/UpdateBanner'
 import { useCovers } from './hooks/useCovers'
 import { useRatings } from './hooks/useRatings'
-import type { ChooseFolderCancelled, Metadata, Movie, MoviesPayload, SubtitleEntry } from '@shared/types'
+import type { ChooseFolderCancelled, CollectionGroup, Metadata, Movie, MoviesPayload, SubtitleEntry } from '@shared/types'
 
 const KEY_MAP: Record<string, string> = {
   ' ': 'SPACE',
@@ -26,6 +26,8 @@ export default function App(): React.JSX.Element {
   const [folders, setFolders] = useState<string[]>([])
   const [query, setQuery] = useState('')
   const [scanning, setScanning] = useState(true)
+  const [collections, setCollections] = useState<CollectionGroup[]>([])
+  const [view, setView] = useState<'library' | 'collections'>('library')
 
   const [selected, setSelected] = useState<Movie | null>(null)
   const [meta, setMeta] = useState<Metadata | null>(null)
@@ -63,6 +65,7 @@ export default function App(): React.JSX.Element {
     async (payload?: MoviesPayload) => {
       bumpGeneration()
       resetRatings()
+      setCollections([]) // clear stale banners until the new library's groups resolve
       if (!payload) setScanning(true)
       const data = payload ?? (await api.listMovies())
       setScanning(false)
@@ -76,6 +79,8 @@ export default function App(): React.JSX.Element {
       setCurrent(data.folder || '')
       setFolders(data.folders || [])
       hydrate(list.map((m) => m.path)) // seed ratings already cached on disk
+      // Themed franchise banners for the browse grid (curated + auto-detected TMDb collections).
+      void api.listCollections().then((c) => setCollections(isError(c) ? [] : c))
     },
     [bumpGeneration, resetRatings, hydrate]
   )
@@ -314,6 +319,11 @@ export default function App(): React.JSX.Element {
           folders={folders}
           current={current}
           count={movies.length}
+          view={view}
+          onSetView={(v) => {
+            setSettingsOpen(false)
+            setView(v)
+          }}
           onSwitch={(f) => void switchFolder(f)}
           onRemove={(f) => void removeFolder(f)}
           onRefresh={() => void loadMovies()}
@@ -337,6 +347,8 @@ export default function App(): React.JSX.Element {
               movies={movies}
               filtered={filtered}
               query={query.trim()}
+              mode={view}
+              collections={collections}
               covers={covers}
               ratings={ratings}
               selectedPath={selected?.path ?? null}

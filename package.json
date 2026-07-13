@@ -1,6 +1,6 @@
 {
   "name": "movieshelf",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "A local movie library browser with TMDb/OMDb matching and an in-window mpv player.",
   "license": "CC-BY-NC-4.0",
   "author": "UrLocalSwede",

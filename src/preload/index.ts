@@ -14,6 +14,7 @@ import type {
 const api: MovieShelfApi = {
   listState: () => ipcRenderer.invoke(IPC.listState),
   listMovies: () => ipcRenderer.invoke(IPC.listMovies),
+  listCollections: () => ipcRenderer.invoke(IPC.listCollections),
   setFolder: (path) => ipcRenderer.invoke(IPC.setFolder, path),
   removeFolder: (path) => ipcRenderer.invoke(IPC.removeFolder, path),
   chooseFolder: () => ipcRenderer.invoke(IPC.chooseFolder),

@@ -1,11 +1,14 @@
-import { useMemo, useState } from 'react'
-import { FilmMark, ReverseIcon } from '../icons'
-import type { Movie, RatingInfo } from '@shared/types'
+import { useEffect, useMemo, useState } from 'react'
+import { BackIcon, FilmMark, ReverseIcon } from '../icons'
+import { CollectionBanners } from './CollectionBanners'
+import type { CollectionGroup, Movie, RatingInfo } from '@shared/types'
 
 interface Props {
   movies: Movie[]
   filtered: Movie[]
   query: string
+  mode: 'library' | 'collections'
+  collections: CollectionGroup[]
   covers: Record<string, string>
   ratings: Record<string, RatingInfo>
   selectedPath: string | null
@@ -32,22 +35,47 @@ export function Grid({
   movies,
   filtered,
   query,
+  mode,
+  collections,
   covers,
   ratings,
   selectedPath,
   scanning,
   onSelect
 }: Props): React.JSX.Element {
-  const empty = movies.length === 0
-  const filteredEmpty = movies.length > 0 && filtered.length === 0
-
   const [sortKey, setSortKey] = useState<SortKey>('title')
   const [reverse, setReverse] = useState(false)
+  const [activeCollection, setActiveCollection] = useState<CollectionGroup | null>(null)
 
-  // Sort the (already search-filtered) list. Rating/year default to descending (best/newest first);
+  // Leaving the Collections tab returns to the banner list; keep the open collection in sync with
+  // the latest groups otherwise (drop it when it's gone after a folder switch/refresh).
+  useEffect(() => {
+    if (mode !== 'collections') {
+      if (activeCollection) setActiveCollection(null)
+      return
+    }
+    if (!activeCollection) return
+    const fresh = collections.find((c) => c.key === activeCollection.key)
+    if (!fresh) setActiveCollection(null)
+    else if (fresh !== activeCollection) setActiveCollection(fresh)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collections, mode])
+
+  // Inside a collection the grid is restricted to that franchise's movies, still honoring the
+  // search box; the library tab shows the app-level search-filtered list.
+  const source = useMemo(() => {
+    if (!activeCollection) return filtered
+    const q = query.toLowerCase()
+    return q ? activeCollection.movies.filter((m) => m.title.toLowerCase().includes(q)) : activeCollection.movies
+  }, [activeCollection, filtered, query])
+
+  const empty = !activeCollection && movies.length === 0
+  const filteredEmpty = source.length === 0 && !empty
+
+  // Sort the (already filtered) list. Rating/year default to descending (best/newest first);
   // the reverse toggle flips the order but movies still awaiting a rating/year always sort last.
   const sorted = useMemo(() => {
-    const arr = [...filtered]
+    const arr = [...source]
     const dir = reverse ? -1 : 1
     if (sortKey === 'title') {
       arr.sort((a, b) => dir * a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }))
@@ -64,10 +92,49 @@ export function Grid({
       return dir * (vb - va)
     })
     return arr
-  }, [filtered, ratings, sortKey, reverse])
+  }, [source, ratings, sortKey, reverse])
+
+  // Collections tab, not yet drilled into a franchise: show only the themed banners.
+  // (Placed after all hooks so hook order stays stable across mode/collection changes.)
+  if (mode === 'collections' && !activeCollection) {
+    return (
+      <div className="grid-scroll">
+        {scanning ? (
+          <div className="grid-loading">
+            <span className="spin-inline" />
+            Scanning library…
+          </div>
+        ) : collections.length === 0 ? (
+          <div className="empty">
+            <div className="empty-title">No collections yet</div>
+            <div className="empty-text">
+              Add movies from a franchise (e.g. the MCU, Harry Potter) and they’ll be grouped here.
+            </div>
+          </div>
+        ) : (
+          <CollectionBanners collections={collections} onOpen={setActiveCollection} />
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="grid-scroll">
+      {activeCollection && (
+        <div
+          className="collection-header"
+          style={{
+            backgroundImage: `linear-gradient(135deg, ${activeCollection.colors[0]} 0%, ${activeCollection.colors[1]} 100%)`
+          }}
+        >
+          <button className="collection-back" title="Back to collections" onClick={() => setActiveCollection(null)}>
+            <BackIcon />
+            <span>Collections</span>
+          </button>
+          <span className="ch-title">{activeCollection.title}</span>
+          <span className="ch-count">{activeCollection.movies.length} movies</span>
+        </div>
+      )}
       {!scanning && !empty && (
         <div className="sort-bar">
           <span className="sort-label">Sort</span>
